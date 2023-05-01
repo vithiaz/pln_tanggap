@@ -1,0 +1,56 @@
+@startuml
+
+Entity users {
+    * id UID PRIMARYKEY
+    * name STRING
+    * email STRING
+    * password STRING
+    * user_type ENUM('host', 'security', 'guest')
+}
+
+Entity checkin_locations {
+    * id UID PRIMARYKEY
+    * name STRING
+}
+
+Entity checkin_data {
+    * id UID PRIMARYKEY
+    * device_token TEXT
+    * checkin_time DATETIME
+    checkout_time DATETIME
+    --
+    user UID FOREIGN(users.id)
+    * location UID FOREIGN(checkin_locations.id)
+}
+
+Entity userprofile {
+    * id VARCHAR PRIMARYKEY
+}
+
+Entity alert_notifications {
+    * id UID PRIMARYKEY
+    * triggered_user UID FOREIGN(users.id)
+    * location UID FOREIGN(checkin_locations.id)
+    * notification_time DATETIME
+    * activation_status BOOLEAN
+}
+
+Entity alert_notifications_member {
+    * id UID PRIMARYKEY
+    * alert_notification UID FOREIGN(alert_notifications.id)
+    * registered_user UID FOREIGN(user.id)
+    * confirmation_date DATETIME
+}
+
+
+' Relation
+users ||--o{ checkin_data
+checkin_locations ||--o{ checkin_data
+checkin_locations ||--o{ alert_notifications
+alert_notifications ||--o{ alert_notifications_member
+alert_notifications_member --|| users
+alert_notifications --|| users
+
+alert_notification }o--|| userprofile
+
+@enduml
