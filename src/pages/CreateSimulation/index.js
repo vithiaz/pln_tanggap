@@ -71,8 +71,7 @@ const PageContentCard = ({ navigation }) => {
     const year = date.getFullYear();
     const hours = date.getHours();
     const minutes = date.getMinutes();
-    const seconds = date.getSeconds();
-    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
   const storeSimulation = () => {
@@ -129,7 +128,7 @@ const PageContentCard = ({ navigation }) => {
             <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={storeSimulation}>
                 <Text style={contentCardStyles.SubmitButtonText}>ATUR SIMULASI</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={contentCardStyles.AbortButton}>
+            <TouchableOpacity style={contentCardStyles.AbortButton} onPress= {() => navigation.pop()}>
                 <Text style={contentCardStyles.AbortButtonText}>BATALKAN</Text>
             </TouchableOpacity>
         </View>
@@ -152,7 +151,7 @@ export default CreateSimulation = ({ navigation }) => {
       <SafeAreaView style={{ height: '100%', }}>
         <View style={styles.container}>
           <View style={styles.topNavigationWrapper}>
-            <TouchableOpacity style={styles.button} onPress={() => {navigation.goBack()}}>
+            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
               <Image source={backIcon} style={styles.buttonIcon} />
             </TouchableOpacity>
           </View>

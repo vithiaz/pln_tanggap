@@ -96,14 +96,30 @@ const Home = ({ navigation }) => {
   // Handle Checkin/Checkout Info
   const [isCheckin, setIsCheckin] = useState(false);
   const [checkinLocation, setCheckinLocation] = useState(null);
+  const [checkinKey, setCheckinKey] = useState(false);
   const [checkinId, setCheckinId] = useState(false);
+
+  // Handling Token
+  const [deviceToken, setDeviceToken] = useState('');
+  
+  const getDeviceToken = async() => {
+    try {
+      const value = await AsyncStorage.getItem('@device_token')
+      setDeviceToken(JSON.parse(value))
+    } catch(e) {
+      console.log(e);
+    }
+  }
+
 
   const getIsCheckin = async () => {
     try {
-      const value = await AsyncStorage.getItem('@isCheckin')
-      if (value != '0') {
+      const value = JSON.parse(await AsyncStorage.getItem('@isCheckin'))
+      if (value) {
         setIsCheckin(true)
-        setCheckinLocation(value)
+        setCheckinId(value.checkinId);
+        setCheckinKey(value.checkinKey)
+        setCheckinLocation(value.checkinLocation)
         console.log('this devices is checked in');
       }
     } catch(e) {
@@ -112,7 +128,9 @@ const Home = ({ navigation }) => {
   }
   useEffect(() => {
     getIsCheckin();
-  }, [])
+    getDeviceToken();
+    console.log('dev token: ', deviceToken)
+  }, [deviceToken])
 
   // Read User Info
   const readUserInfo = currentUser => {
@@ -125,6 +143,7 @@ const Home = ({ navigation }) => {
             setUserType(snapshot.val().user_type)
             
             if (snapshot.hasChild('checkin_id')) {
+              setCheckinKey(snapshot.val().office_UID)
               setIsCheckin(true)
               setCheckinId(snapshot.val().checkin_id)
               setCheckinLocation(snapshot.val().checkin_location)
@@ -159,12 +178,10 @@ const Home = ({ navigation }) => {
       return () => unsubscribe();
   }, [user]);
 
-  
-  const announcementMessage = 'Hari ini akan dilaksanakan simulasi pada pukul 14:00. Diharapkan agar semua yang berada di dalam gedung kantor untuk menjalankan protokol evakuasi.';
-
   return (
     <View style={styles.appView}>
       <Navbar
+        userUID={userUID}
         username={username}
         userType={userType}
         userProfile={false}
@@ -178,20 +195,33 @@ const Home = ({ navigation }) => {
           setCheckin={setIsCheckin}
           checkinLocation={checkinLocation}
           setCheckinLocation={setCheckinLocation}
-          checkinState={ !isCheckin }/>
+          checkinId={checkinId}
+          checkinKey={checkinKey}
+          setCheckinKey={setCheckinKey}
+          setCheckinId={setCheckinId}
+          checkinState={ !isCheckin }
+          deviceToken={deviceToken}
+          setDeviceToken={setDeviceToken}
+          />
           {userType == 'host' ? (
-            <HostMenu isHost={true} isCheckin={!isCheckin} />
+            <HostMenu isHost={true} isCheckin={isCheckin} />
           ) : ''}
         <CardBody
-          announcement={announcementMessage}
           userAuth={user}
           userInfo={userInfo}
           />
       </ScrollView>
-      <Footer isCheckin={isCheckin} />
+      <Footer
+        isCheckin={isCheckin}
+        checkinId={checkinId}
+        checkinKey={checkinKey}
+        deviceToken={deviceToken}
+      />
     </View>
   );
 }
+
+export default Home;
 
 const Navbar = (props) => {
   const navigation = useNavigation();
@@ -216,7 +246,9 @@ const Navbar = (props) => {
     navigation.navigate('Login');
   };
 
+  // Handle Logout
   const logout = () => {
+    const logoutUserUID = props.userUID;
     signOut(auth).then(() => {
       console.log('Logged out')
       setAttribute()
@@ -224,14 +256,13 @@ const Navbar = (props) => {
       setUserType(null);
       setUsername(null);
 
-      // Chekingout the user
+      // Checking the user out
       try {
-        const userUpdateRef = ref(db, 'users/' + props.userUID);
+        const userUpdateRef = ref(db, 'users/' + logoutUserUID);
         update(userUpdateRef, {
           checkin_id: null,
           checkin_location: null
         })
-        props.setCheckin(false);
       } catch(e) {
         console.log('Updating user to checkout failed: ', e)
       }
@@ -294,16 +325,22 @@ const Navbar = (props) => {
 
 const CheckoutInfo = (props) => {
   // Get device token
-  const [deviceToken, setDeviceToken] = useState('');
-  const getDeviceToken = async () => {
-    try {
-      const value = await AsyncStorage.getItem('@device_token')
-      setDeviceToken(JSON.parse(value))
-    } catch(e) {
-      console.log(e);
-    }
-  }
-  getDeviceToken();
+  // const [deviceToken, setDeviceToken] = useState('');
+  
+  // const getDeviceToken = async() => {
+  //   try {
+  //     const value = await AsyncStorage.getItem('@device_token')
+  //     setDeviceToken(JSON.parse(value))
+  //   } catch(e) {
+  //     console.log(e);
+  //   }
+  // }
+  // getDeviceToken();
+
+  useEffect(() => {
+    console.log('tracking ...: ', props.checkinKey);
+  }, [props.checkinKey]);
+
 
   // const [isCheckin, setIsCheckin] = useState(false);
   const [checkinDataInfo, setCheckinData] = useState(false);
@@ -326,13 +363,16 @@ const CheckoutInfo = (props) => {
 
   function getCurrentTime() {
     const now = new Date();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
-    const year = now.getFullYear();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
-    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const options = {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    };
+    return now.toLocaleString('en-US', options);
   }
 
   // Handle Checkin
@@ -344,7 +384,7 @@ const CheckoutInfo = (props) => {
       const tableRef = ref(db, 'checkin_data/' + attemptKey)
       try {
         set(tableRef, {
-          device_token: deviceToken,
+          device_token: props.deviceToken,
           checkin_time: getCurrentTime(),
           checkout_time: null,
           user_UID: props.userUID,
@@ -353,6 +393,8 @@ const CheckoutInfo = (props) => {
         });
         console.log('storing completed');
         props.setCheckin(true);
+        props.setCheckinId(attemptKey);
+        props.setCheckinKey(checkinLocation.key);
         props.setCheckinLocation(checkinLocation.label);
       } catch(e) {
         console.log('Error while storing the data: ', e);
@@ -369,19 +411,25 @@ const CheckoutInfo = (props) => {
       }
     }
     else { // else Create GuestCheckin Table
-      const tableRef = ref(db, 'guest_checkin/' + deviceToken)
+      const tableRef = ref(db, 'guest_checkin/' + props.deviceToken)
       try {
         set(tableRef, {
-          device_token: deviceToken,
+          device_token: props.deviceToken,
           checkin_time: getCurrentTime(),
           checkout_time: null,
           location_id: checkinLocation.key,
           location_name: checkinLocation.label
         });
         props.setCheckin(true)
+        props.setCheckinId(props.deviceToken);
+        props.setCheckinKey(checkinLocation.key);
         props.setCheckinLocation(checkinLocation.label);
         
-        AsyncStorage.setItem('@isCheckin', checkinLocation.label);
+        AsyncStorage.setItem('@isCheckin', JSON.stringify({
+          checkinId: props.deviceToken,
+          checkinLocation: checkinLocation.label,
+          checkinKey: checkinLocation.key
+        }));
         console.log('storing completed');
       } catch(e) {
         console.log('Error while storing the data: ', e);
@@ -392,26 +440,39 @@ const CheckoutInfo = (props) => {
   // Handle Checkout
   const handleCheckoutButton = () => {
     if (props.userUID != null) {
+      const userUpdateRef = ref(db, 'users/' + props.userUID);
+      
+      get(child(ref(db), 'users/'+props.userUID)).then((snapshot) => {
+          if (snapshot.exists()) {
+            const dataCheckinId = snapshot.val().checkin_id;
+            const dataCheckinRef = ref(db, 'checkin_data/' + dataCheckinId);
+            update(dataCheckinRef, {
+              checkout_time: getCurrentTime()
+            })
+          }
+        }).catch((error) => {
+          console.error(error);
+      }, { onlyOnce: true });
+
       // Resetting user
       try {
-        const userUpdateRef = ref(db, 'users/' + props.userUID);
-        update(userUpdateRef, {
-          checkin_id: null,
-          checkin_location: null
-        })
-        props.setCheckin(false);
+          update(userUpdateRef, {
+            checkin_id: null,
+            checkin_location: null
+          })
+          props.setCheckin(false);
       } catch(e) {
-        console.log('Updating user to checkout failed: ', e)
+          console.log('Updating user to checkout failed: ', e)
       }
     }
     else {
-      const tableRef = ref(db, 'guest_checkin/' + deviceToken)
+      const tableRef = ref(db, 'guest_checkin/' + props.deviceToken)
       try {
         remove(tableRef);
         console.log('Checkout data removed');
         props.setCheckin(false);
         props.setCheckinLocation(null)
-        AsyncStorage.setItem('@isCheckin', '0');
+        AsyncStorage.removeItem('@isCheckin');
       }
       catch(e) {
         console.log('Error while try to remove the data: ', e)
@@ -468,7 +529,7 @@ const HostMenu = (props) => {
   useEffect(() => {
     setIsCheckin(props.isCheckin);
     setIsHost(props.isHost);
-  }, [])
+  }, [props])
 
   const navigation = useNavigation();
   const navigateToCreateSimulaiton = () => {
@@ -532,7 +593,8 @@ const CardBody = (props) => {
     data = {
       simulationId,
       data: simulationData,
-      userInfo: props.userInfo
+      userInfo: props.userInfo,
+      deviceToken: props.deviceToken
     };
     navigation.navigate('SimulationInfo', data);
   }
@@ -648,15 +710,19 @@ const ActivityHistory = (props) => {
 
 const Footer = (props) => {
   const [isCheckin, setIsCheckin] = useState(false);
+  const [checkinId, setCheckinId] = useState(false);
+  const [checkinKey, setCheckinKey] = useState(false);
+  
+  useEffect(() => {
+    setIsCheckin(props.isCheckin)
+    setCheckinId(props.checkinId)
+    setCheckinKey(props.checkinKey)
+  }, [props])
 
   const navigation = useNavigation();
   const navigateToAlarm = () => {
-    navigation.navigate('Alarm');
+    navigation.navigate('Alarm', {checkinId: checkinId, checkinKey: checkinKey, deviceToken: props.deviceToken});
   };
-
-  useEffect(() => {
-    setIsCheckin(props.isCheckin)
-  }, [props.isCheckin])
 
   return (
     <View style={footerStyles.footerContainer}>
@@ -676,8 +742,6 @@ const Footer = (props) => {
     </View>
   );
 }
-
-export default Home;
 
 const styles = StyleSheet.create({
   appView: {
@@ -888,7 +952,7 @@ const hostMenuStyles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 5,
     borderRadius: 12,
-    backgroundColor: '#00aeef',
+    backgroundColor: '#ed1c24',
   },
   buttonIcon: {
     height: 25,

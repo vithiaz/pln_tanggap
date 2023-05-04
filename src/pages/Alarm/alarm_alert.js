@@ -8,43 +8,132 @@ import {
   Image
 } from 'react-native'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 import BackIcon from '../../assets/icon/back.png'
 import SirenIcon from '../../assets/icon/siren.png'
 import AlertIcon from '../../assets/icon/alert.png'
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
+import { TextArea } from 'native-base'
+import { TextInput } from 'react-native-gesture-handler'
+import { onValue, ref, set } from 'firebase/database'
+import { db } from '../../config/firebase'
+import { useFocus } from 'native-base/lib/typescript/components/primitives'
 
-export default function AlarmAlert({ navigation }) {
+export default AlarmAlert = ({ route, navigation }) => {
+  const infoMessageHeader = 'INFORMASI PENTING';
   const infoMessage = 'Alarm darurat akan memperingati semua orang pada tempat anda Check-in untuk segera melakukan evakuasi.';
-  const infoMessageHeader = 'KEADAAN DARURAT!!!';
+  const checkinId = route.params.checkinId;
+  const checkinKey = route.params.checkinKey;
+  const myToken = route.params.myToken;
+
+  // const [locationId, setLocationId] = useState(null);
+  const [information, setInformation] = useState('');
+  const [checkinTokens, setCheckinTokens] = useState([]);
+  const [staffTokens, setStaffTokens] = useState([]);
+  const [guestTokens, setGuestTokens] = useState([]);
+  const [notifyTokens, setNotifyTokens] = useState([])
+
+  const handleInformationChange = (info) => {
+    setInformation(info);
+  }
+
+  useEffect(() => {
+    console.log('updateId ' , checkinId)
+    console.log('Locationkey ' , checkinKey)
+    console.log('TOken ' , myToken)
+  }, [])
+
+  const getCheckinToken = () => {
+    onValue(ref(db, '/checkin_data'), (snap) => {
+      const newData = [];
+      snap.forEach((snapchild) => {
+        if (snapchild.val().checkout_time == null && snapchild.val().location_id == checkinKey) {
+          newData.push(snapchild.val().device_token);
+        }
+      })
+      setCheckinTokens(newData)
+    }, {onlyOnce: true})
+  }
+
+  const getStaffToken = () => {
+    onValue(ref(db, '/users'), (snap) => {
+      const newData = [];
+      snap.forEach((snapchild) => {
+        if (snapchild.val().office_UID == checkinKey) {
+          newData.push(snapchild.val().device_token)
+        }
+      })
+      setStaffTokens(newData)
+    }, {onlyOnce: true})
+  }
+
+  const getGuestToken = () => {
+    onValue(ref(db, '/guest_checkin'), (snap) => {
+      const newData = [];
+      snap.forEach((snapchild) => {
+        if (snapchild.val().location_id == checkinKey) {
+          newData.push(snapchild.val().device_token);
+        }
+      })
+      setGuestTokens(newData)
+    }, {onlyOnce: true})
+  }
+  
+
+  useEffect(() => {
+    console.log('checkinToken: ', checkinTokens);
+    console.log('staffToken: ', staffTokens);
+    console.log('guestToken: ', guestTokens);
+  }, [checkinTokens, staffTokens, guestTokens])
+  
+  // useEffect(() => {
+  // }, [staffTokens])
+  // useEffect(() => {
+  // }, [guestTokens])
+  
+  const combineArrays = (...arrays) => {
+    const combinedArray = [].concat(...arrays);
+    return [...new Set(combinedArray)];
+  };
+
+  const handleAlarmTriggered = () => {
+    getCheckinToken();
+    getStaffToken();
+    getGuestToken();
+
+    const notificationTokens = combineArrays(checkinTokens, ...staffTokens, ...guestTokens);
+    console.log('Merging : ', notificationTokens);
+
+    // Checkpoint
+
+
+
+    // const attemptKey = push(child(ref(db), 'emergency_alert')).key;
+    // set(ref(db, 'emergency_alert/' + attemptKey), {
+    //   title: 'ALARM DARURAT',
+    //   message: information,
+
+    // });
+  }
   
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
       <SafeAreaView style={{ height: '100%', }}>
         <View style={styles.pageContainer}>
           <View style={styles.topNavigationWrapper}>
-            <TouchableOpacity style={styles.button} onPress={() => {navigation.goBack()}}>
+            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
               <Image source={BackIcon} style={styles.buttonIcon} />
             </TouchableOpacity>
           </View>
 
           {/* Alarm Button */}
           <View style={styles.pageBodyWrapper}>
-            <TouchableOpacity style={styles.alarmButton}>
+            <TouchableOpacity style={styles.alarmButton} onPress={handleAlarmTriggered}>
               <Image source={SirenIcon} style={styles.alarmButtonIcon}/>
               <Text style={styles.alarmButtonText}>BUNYIKAN ALARM</Text>
             </TouchableOpacity>
-            
-            {/* Time Wrapper */}
-            {/* <View style={styles.timerWrapper}>
-              <Text style={styles.timerNumber}>00</Text>
-              <Text style={styles.timerNumberSeparator}>:</Text>
-              <Text style={styles.timerNumber}>00</Text>
-              <Text style={styles.timerNumberSeparator}>:</Text>
-              <Text style={styles.timerNumber}>00</Text>
-            </View> */}
-            
+                        
             {/* Info Wrapper */}
             <View style={styles.infoWrapper}>
               <Image source={AlertIcon} style={styles.infoCardIcon} />
@@ -53,14 +142,14 @@ export default function AlarmAlert({ navigation }) {
                 <Text style={styles.infoTextMessage}>{infoMessage}</Text>
               </View>
             </View>
+
+            <View style={styles.addInfoWrapper}>
+              <Text style={{ color: 'black', fontWeight: '600' }}>Informasi :</Text>
+              <TextInput placeholder='Informasi keadaan darurat...' onChangeText={handleInformationChange}></TextInput>
+            </View>
           </View>
 
-          {/* Page Footer */}
-          {/* <View style={styles.pageFooterWrapper}>
-            <TouchableOpacity style={styles.footerButton}>
-              <Text style={styles.footerButtonText}>Saya sudah di titik evakuasi</Text>
-            </TouchableOpacity>
-          </View> */}
+
         </View>
       </SafeAreaView>
     </ScrollView>
@@ -171,6 +260,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  addInfoWrapper: {
+    width: '100%',
+    backgroundColor: '#f4f7ff',
+    borderRadius: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
     paddingVertical: 10,
     paddingHorizontal: 20,
   },

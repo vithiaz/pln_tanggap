@@ -5,13 +5,40 @@ import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { push, child, ref, set, update } from 'firebase/database';
+import { db } from '../../config/firebase';
+import { TouchEventType } from 'react-native-gesture-handler/lib/typescript/TouchEventType';
 
 export default SimulationInfo = ({route, navigation}) => {
     const simulationId = route.params.simulationId;
     const simulationData = route.params.data;
     const userInfo = route.params.userInfo;
+    const [isRegister, setIsRegister] = useState(false);
     const [isHost, setIsHost] = useState(false)
 
+    // Get device token
+    const [deviceToken, setDeviceToken] = useState('');
+    const getDeviceToken = async () => {
+        try {
+            const value = await AsyncStorage.getItem('@device_token')
+            setDeviceToken(JSON.parse(value))
+        } catch(e) {
+            console.log(e);
+        }
+    }
+    
+    // Handle if user already register based on device token
+    useEffect(() => {
+        getDeviceToken();
+        if (simulationData.hasOwnProperty('members')) {
+            Object.entries(simulationData.members).map(([token, data]) => {
+                if (data.device_token == deviceToken) {
+                    setIsRegister(true);
+                }
+            })
+        }
+    }, [deviceToken])
+    
     // Handle if host
     useEffect(() => {
         if (userInfo) {
@@ -21,19 +48,45 @@ export default SimulationInfo = ({route, navigation}) => {
         }
     }, [userInfo])
 
-    // Get device token
-    const [deviceToken, setDeviceToken] = useState('');
-    const getDeviceToken = async () => {
+    // Register Simulation
+    const handleRegisterSimulation = () => {
         try {
-        const value = await AsyncStorage.getItem('@device_token')
-        setDeviceToken(JSON.parse(value))
-        } catch(e) {
-        console.log(e);
+            set(ref(db, 'simulations/' + simulationId + '/members/' + deviceToken), {
+                device_token: deviceToken,
+                secure_state: false,
+            });
+            setIsRegister(true)
+            console.log('Simulation registration success');
+        } catch (e) {
+            console.log('Error: ', e);
         }
     }
-    useEffect(() => {
-        getDeviceToken();
-    }, [])
+    // Cancel Register Simulation
+    const handleCancelRegisterSimulation = () => {
+        try {
+            const updates = {}
+            updates['/simulations/' + simulationId + '/members/' + deviceToken] = null;
+            update(ref(db), updates);
+            setIsRegister(false)
+            console.log('Simulation registration canceled');
+        } catch (e) {
+            console.log('Error: ', e);
+        }
+    }
+
+    // Cancel Simulation
+    const handleCancelSimulation = () => {
+        try {
+            const updates = {}
+            updates['/simulations/' + simulationId] = null;
+            update(ref(db), updates);
+            setIsRegister(false)
+            navigation.pop();
+            console.log('Simulation canceled');
+        } catch (e) {
+            console.log('Error: ', e);
+        }
+    }
 
 
     return (
@@ -41,7 +94,7 @@ export default SimulationInfo = ({route, navigation}) => {
             <SafeAreaView style={{ height: '100%', }}>
             <View style={styles.container}>
                 <View style={styles.topNavigationWrapper}>
-                <TouchableOpacity style={styles.button} onPress={() => {navigation.goBack()}}>
+                <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
                     <Image source={backIcon} style={styles.buttonIcon} />
                 </TouchableOpacity>
                 </View>
@@ -75,13 +128,27 @@ export default SimulationInfo = ({route, navigation}) => {
                     
                     {/* Buttons */}
                     <View style={contentCardStyles.buttonWrapper}>
-                        <TouchableOpacity style={contentCardStyles.AbortButton}>
-                            <Text style={contentCardStyles.AbortButtonText}>IKUTI SIMULASI</Text>
-                        </TouchableOpacity>
-                        {isHost && (
-                            <TouchableOpacity style={contentCardStyles.SubmitButton}>
-                                <Text style={contentCardStyles.SubmitButtonText}>MULAI SIMULASI</Text>
+                        {(isRegister == false) ? (
+                            <TouchableOpacity style={contentCardStyles.AbortButton} onPress={handleRegisterSimulation}>
+                                <Text style={contentCardStyles.AbortButtonText}>Ikuti Simulasi</Text>
                             </TouchableOpacity>
+                        ) : (
+                            <>
+                                <Text>Anda telah terdaftar untuk simulasi ini</Text>
+                                <TouchableOpacity style={contentCardStyles.AbortButton} onPress={handleCancelRegisterSimulation}>
+                                    <Text style={contentCardStyles.AbortButtonText}>Batalkan Pendaftaran</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                        {isHost && (
+                            <>
+                                <TouchableOpacity style={contentCardStyles.DangerButton} onPress={handleCancelSimulation}>
+                                    <Text style={contentCardStyles.DangerButtonText}>BATALKAN SIMULASI</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={contentCardStyles.SubmitButton}>
+                                    <Text style={contentCardStyles.SubmitButtonText}>MULAI SIMULASI</Text>
+                                </TouchableOpacity>
+                            </>
                         )}
                     </View>
                 </View>
@@ -260,6 +327,19 @@ const contentCardStyles = StyleSheet.create({
     },
     SubmitButtonText: {
       color: 'black',
+      fontWeight: 700,
+    },
+    DangerButton: {
+      width: '100%',
+      padding: 10,
+      backgroundColor: '#ed1c24',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 12,
+    },
+    DangerButtonText: {
+      color: 'white',
       fontWeight: 700,
     },
     AbortButton: {

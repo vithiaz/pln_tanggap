@@ -47,10 +47,10 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
         notificationIcon: 'ic_launcher', //mipmap
         notificationTitle: 'KEADAAN DARURAT!!!',
         notificationBody: 'Lakukan protokol evakuasi',
-        // answerText: 'Bu',
-        // declineText: 'Decline',
-        // notificationColor: 'colorAccent',
-        notificationColor: 'red',
+        answerText: 'Konfirmasi',
+        declineText: 'Abaikan',
+        notificationColor: 'colorAccent',
+        // notificationColor: 'red',
         notificationSound: null, //raw
         // mainComponent:'notificationAlert',//AppRegistry.registerComponent('MyReactNativeApp', () => CustomIncomingCall);
         // payload:{name:'Test',Body:'test'}
@@ -78,7 +78,6 @@ RNNotificationCall.addEventListener('answer', (data) => {
   console.log('payload data', payload);
 });
   
-
 
 const Stack = createStackNavigator();
 

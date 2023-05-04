@@ -2,16 +2,20 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 
 import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import React, { useState } from 'react'
 
 import AlarmAlert from './alarm_alert';
 import AlarmActive from './alarm_active';
 import AlarmEnded from './alarm_ended';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createStackNavigator();
 
+export default function Alarm({route}) {
+  const checkinId = route.params.checkinId;
+  const checkinKey = route.params.checkinKey;
+  const myToken = route.params.deviceToken;
 
-export default function Alarm() {
   return (
     <Stack.Navigator 
         screenOptions={{
@@ -20,7 +24,9 @@ export default function Alarm() {
     >
         <Stack.Screen
             name="Alert"
-            component={AlarmAlert} />
+            component={AlarmAlert}
+            initialParams={{ myToken: myToken, checkinId: checkinId, checkinKey: checkinKey }}
+            />
         <Stack.Screen
             name="Active"
             component={AlarmActive} />

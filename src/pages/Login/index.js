@@ -13,7 +13,7 @@ const PageContentCard = (props) => {
   const [deviceToken, setDeviceToken] = useState('');
   const getDeviceToken = async () => {
     try {
-      const value = await AsyncStorage.getItem('@device_token')
+      const value = JSON.parse(await AsyncStorage.getItem('@device_token'));
       setDeviceToken(value)
     } catch(e) {
       console.log(e);
