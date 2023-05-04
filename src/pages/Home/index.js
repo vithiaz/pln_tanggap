@@ -143,7 +143,8 @@ const Home = ({ navigation }) => {
       return () => unsubscribe();
   }, [user]);
 
-  // Handling checkout state
+  // Handlingg if user not logged in and already checkout
+
 
   
   const isHost = true;
@@ -340,10 +341,9 @@ const CheckoutInfo = (props) => {
       } catch(e) {
         console.log('Updating user to checkin failed: ', e)
       }
-
     }
     // else Create GuestCheckin Table
-    {
+    else {
       // const attemptKey = push(child(ref(db), 'guest_checkin')).key;
       const tableRef = ref(db, 'guest_checkin/' + token_clean)
       try {
