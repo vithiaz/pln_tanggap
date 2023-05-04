@@ -22,7 +22,6 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
-
 import { useNavigation } from '@react-navigation/native';
 
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
@@ -58,7 +57,7 @@ import { addDoc, updateDoc } from 'firebase/firestore';
 import { convertAbsoluteToRem } from 'native-base/lib/typescript/theme/tools';
 
 
-const Home = ({ navigation }) => { 
+const Home = ({ navigation }) => {
   // React Native Firebase Messaging
   // useEffect(() => {
   //   const unsubscribe = messaging().onMessage(async remoteMessage => {
@@ -96,8 +95,24 @@ const Home = ({ navigation }) => {
 
   // Handle Checkin/Checkout Info
   const [isCheckin, setIsCheckin] = useState(false);
+  const [checkinLocation, setCheckinLocation] = useState(null);
   const [checkinId, setCheckinId] = useState(false);
 
+  const getIsCheckin = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@isCheckin')
+      if (value != '0') {
+        setIsCheckin(true)
+        setCheckinLocation(value)
+        console.log('this devices is checked in');
+      }
+    } catch(e) {
+      console.log(e);
+    }
+  }
+  useEffect(() => {
+    getIsCheckin();
+  }, [])
 
   // Read User Info
   const readUserInfo = currentUser => {
@@ -112,8 +127,9 @@ const Home = ({ navigation }) => {
             if (snapshot.hasChild('checkin_id')) {
               setIsCheckin(true)
               setCheckinId(snapshot.val().checkin_id)
+              setCheckinLocation(snapshot.val().checkin_location)
             } else {
-              // setIsCheckin(false)
+              setIsCheckin(false)
               setCheckinId(false)
             }
         // });
@@ -143,12 +159,7 @@ const Home = ({ navigation }) => {
       return () => unsubscribe();
   }, [user]);
 
-  // Handlingg if user not logged in and already checkout
-
-
   
-  const isHost = true;
-  const currentDate = new Date();
   const announcementMessage = 'Hari ini akan dilaksanakan simulasi pada pukul 14:00. Diharapkan agar semua yang berada di dalam gedung kantor untuk menjalankan protokol evakuasi.';
 
   return (
@@ -165,15 +176,19 @@ const Home = ({ navigation }) => {
           userInfo = {userInfo}
           checkin={isCheckin}
           setCheckin={setIsCheckin}
+          checkinLocation={checkinLocation}
+          setCheckinLocation={setCheckinLocation}
           checkinState={ !isCheckin }/>
           {userType == 'host' ? (
             <HostMenu isHost={true} isCheckin={!isCheckin} />
           ) : ''}
         <CardBody
           announcement={announcementMessage}
-          isHost={isHost}/>
+          userAuth={user}
+          userInfo={userInfo}
+          />
       </ScrollView>
-      <Footer isCheckout={!isCheckin} />
+      <Footer isCheckin={isCheckin} />
     </View>
   );
 }
@@ -208,6 +223,18 @@ const Navbar = (props) => {
       setUserProfile(null);
       setUserType(null);
       setUsername(null);
+
+      // Chekingout the user
+      try {
+        const userUpdateRef = ref(db, 'users/' + props.userUID);
+        update(userUpdateRef, {
+          checkin_id: null,
+          checkin_location: null
+        })
+        props.setCheckin(false);
+      } catch(e) {
+        console.log('Updating user to checkout failed: ', e)
+      }
     }).catch((error) => {
       console.log('error: ', error)
     });
@@ -271,7 +298,7 @@ const CheckoutInfo = (props) => {
   const getDeviceToken = async () => {
     try {
       const value = await AsyncStorage.getItem('@device_token')
-      setDeviceToken(value)
+      setDeviceToken(JSON.parse(value))
     } catch(e) {
       console.log(e);
     }
@@ -308,87 +335,88 @@ const CheckoutInfo = (props) => {
     return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
+  // Handle Checkin
   const handleSelectedLocation = (checkinLocation) =>
-  {
-    // Device Token
-    const token_raw = deviceToken
-    const token_clean = token_raw.replace(/^"(.+(?="$))"$/, '$1');
-    
+  {   
     // Create CheckinData Table if Logged id
     if (auth.currentUser != null) {
       const attemptKey = push(child(ref(db), 'checkin_data')).key;
       const tableRef = ref(db, 'checkin_data/' + attemptKey)
       try {
         set(tableRef, {
-          device_token: token_clean,
+          device_token: deviceToken,
           checkin_time: getCurrentTime(),
           checkout_time: null,
           user_UID: props.userUID,
-          location_id: checkinLocation.key
+          location_id: checkinLocation.key,
+          location_name: checkinLocation.label
         });
         console.log('storing completed');
         props.setCheckin(true);
+        props.setCheckinLocation(checkinLocation.label);
       } catch(e) {
         console.log('Error while storing the data: ', e);
       }
       // Store CheckinID in Users
       try {
-        const dataupdate = {
-          checkin_id: attemptKey
-        }
         const userUpdateRef = ref(db, 'users/' + props.userUID);
-        update(userUpdateRef, { checkin_id: attemptKey })
+        update(userUpdateRef, {
+          checkin_id: attemptKey,
+          checkin_location: checkinLocation.label
+        })
       } catch(e) {
         console.log('Updating user to checkin failed: ', e)
       }
     }
-    // else Create GuestCheckin Table
-    else {
-      // const attemptKey = push(child(ref(db), 'guest_checkin')).key;
-      const tableRef = ref(db, 'guest_checkin/' + token_clean)
+    else { // else Create GuestCheckin Table
+      const tableRef = ref(db, 'guest_checkin/' + deviceToken)
       try {
         set(tableRef, {
-          device_token: token_clean,
+          device_token: deviceToken,
           checkin_time: getCurrentTime(),
           checkout_time: null,
-          location_id: checkinLocation.key
+          location_id: checkinLocation.key,
+          location_name: checkinLocation.label
         });
         props.setCheckin(true)
+        props.setCheckinLocation(checkinLocation.label);
+        
+        AsyncStorage.setItem('@isCheckin', checkinLocation.label);
         console.log('storing completed');
       } catch(e) {
         console.log('Error while storing the data: ', e);
       }
     }
-
   }
 
+  // Handle Checkout
   const handleCheckoutButton = () => {
-    const token_raw = deviceToken
-    const token_clean = token_raw.replace(/^"(.+(?="$))"$/, '$1');
-
     if (props.userUID != null) {
       // Resetting user
       try {
         const userUpdateRef = ref(db, 'users/' + props.userUID);
-        update(userUpdateRef, { checkin_id: null })
+        update(userUpdateRef, {
+          checkin_id: null,
+          checkin_location: null
+        })
         props.setCheckin(false);
       } catch(e) {
-        console.log('Updating user to checkin failed: ', e)
+        console.log('Updating user to checkout failed: ', e)
       }
     }
     else {
-      const tableRef = ref(db, 'guest_checkin/' + token_clean)
+      const tableRef = ref(db, 'guest_checkin/' + deviceToken)
       try {
         remove(tableRef);
         console.log('Checkout data removed');
         props.setCheckin(false);
+        props.setCheckinLocation(null)
+        AsyncStorage.setItem('@isCheckin', '0');
       }
       catch(e) {
         console.log('Error while try to remove the data: ', e)
       }
     }
-    
-
   }
 
   return (
@@ -416,7 +444,7 @@ const CheckoutInfo = (props) => {
           <Image source={OfficeIcon} style={checkoutInfoStyles.officeIcon} />
           <View style={checkoutInfoStyles.locationInfoWrapper} >
             <Text style={checkoutInfoStyles.checkinLocationTitle}>Anda sedang Check-in di</Text>
-            <Text style={checkoutInfoStyles.checkinLocationDesc}>{checkinDataInfo.checkinLocation}</Text>
+            <Text style={checkoutInfoStyles.checkinLocationDesc}>{props.checkinLocation}</Text>
           </View>
           <Text style={checkoutInfoStyles.checkinTimeDesc}>{checkinDataInfo.checkinTime}</Text>
         </TouchableOpacity>
@@ -440,15 +468,12 @@ const HostMenu = (props) => {
   useEffect(() => {
     setIsCheckin(props.isCheckin);
     setIsHost(props.isHost);
-  })
+  }, [])
 
   const navigation = useNavigation();
-
   const navigateToCreateSimulaiton = () => {
     navigation.navigate('CreateSimulation');
   }
-
-
   return (
     <View style={hostMenuStyles.hostMenuContainer}>
       <Text style={hostMenuStyles.containerTitle}>Host Menu</Text>
@@ -457,10 +482,10 @@ const HostMenu = (props) => {
           <Image source={SettingsIcon} style={hostMenuStyles.buttonIcon}/>
           <Text style={hostMenuStyles.buttonText}>Simulasi</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={hostMenuStyles.menuButton}>
+        {/* <TouchableOpacity style={hostMenuStyles.menuButton}>
           <Image source={AnnouncementIcon} style={hostMenuStyles.buttonIcon}/>
           <Text style={hostMenuStyles.buttonText}>Pengumuman</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );
@@ -470,41 +495,85 @@ const HostMenu = (props) => {
 const CardBody = (props) => {
   const [announcement, setAnnouncement] = useState(false);
   const [isHost, setIsHost] = useState(false);
+  const [simulationsData, setSimulationsData] = useState({});
+
+  // Retrive Data from database
+  useEffect(() => {
+    const simulationsRef = ref(db, '/simulations/')
+    console.log('getting data ...')
+    const getSimulationsData = onValue(simulationsRef, (snap) => {
+      const newData = {};
+      snap.forEach((snapchild) => {
+        const index = snapchild.key;
+        const data = snapchild.val();
+        if (data.status == 'pending') {
+          newData[index] = data;
+        }
+      })
+      setSimulationsData(newData);
+    })
+    return () => getSimulationsData();
+  }, [])
 
   useEffect(() => {
     setAnnouncement(props.announcement)
     setIsHost(props.isHost);
-  })
+
+    // Handle User Type
+    if (props.userInfo) {
+      if (props.userInfo.user_type == 'host') {
+        setIsHost(true)
+      }
+    }
+  }, [props.userInfo])
+  
+  const navigation = useNavigation();
+  const navigateToSimulationInfo = (simulationId, simulationData) => {
+    data = {
+      simulationId,
+      data: simulationData,
+      userInfo: props.userInfo
+    };
+    navigation.navigate('SimulationInfo', data);
+  }
 
   return(
     <View style={cardBodyStyles.cardBody}>
-      {isHost ? (
+      <View style={cardBodyStyles.cardBodyWrapper}>
+        <Text style={cardBodyStyles.cardSeparatorTitle}>Simulasi Terjadwal</Text>
+        
+        {Object.entries(simulationsData).map(([key, value]) => (
+          <TouchableOpacity key={key} style={cardBodyStyles.announcementCardWrapper} onPress={() => navigateToSimulationInfo(key, value)}>
+            <View style={{ flexDirection: 'row', gap: 20 }}>
+                <Image source={OfficeIcon} style={{ width: 25, height: 25 }}/>
+                <Text style={{ flexGrow: 1, color: 'black' }}>{value.location_name}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 20 }}>
+                <Image source={timeIcon} style={{ width: 25, height: 25 }}/>
+                <Text style={{ flexGrow: 1, color: 'black' }}>{value.date_start}</Text>
+              </View>
+              <Text style={{ color: 'black', fontWeight: '600', textAlign: 'left', width: '100%', flexShrink: 1 }}>{value.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      
+      {/* {isHost ? (
         <View style={cardBodyStyles.cardBodyWrapper}>
           <Text style={cardBodyStyles.cardSeparatorTitle}>Simulasi Terjadwal</Text>
-          <TouchableOpacity style={cardBodyStyles.announcementCardWrapper}>
-            <View style={{ flexDirection: 'row', gap: 20 }}>
-              <Image source={OfficeIcon} style={{ width: 25, height: 25 }}/>
-              <Text style={{ flexGrow: 1, color: 'black' }}>PLN Kawangkoan</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 20 }}>
-              <Image source={timeIcon} style={{ width: 25, height: 25 }}/>
-              <Text style={{ flexGrow: 1, color: 'black' }}>23 April 2023</Text>
-            </View>
-            <Text style={{ color: 'black', fontSize: 18, fontWeight: '600' }}>Simulasi Kebakaran</Text>
-          </TouchableOpacity>
-
-
-          {/* <TouchableOpacity style={cardBodyStyles.simulationCardWrapper}>
-            <Image source={bellRingingIcon} style={cardBodyStyles.simulationIcon}/>
-            <View style={cardBodyStyles.simulationInfoWrapper}>
-              <Text style={cardBodyStyles.simulationNameText}>Nama Simulasi</Text>
-              <Text style={cardBodyStyles.simulationLocationText}>Lokasi Simulasi</Text>
-              <Text style={cardBodyStyles.simulationTanggalText}>Tanggal</Text>
-            </View>
-            <View style={cardBodyStyles.simulationTimeWrapper}>
-              <Text style={cardBodyStyles.simulationJamText}>Jam</Text>
-            </View>
-          </TouchableOpacity> */}
+          
+          {Object.entries(simulationsData).map(([key, value]) => (
+            <TouchableOpacity key={key} style={cardBodyStyles.announcementCardWrapper}>
+              <View style={{ flexDirection: 'row', gap: 20 }}>
+                  <Image source={OfficeIcon} style={{ width: 25, height: 25 }}/>
+                  <Text style={{ flexGrow: 1, color: 'black' }}>{value.location_name}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 20 }}>
+                  <Image source={timeIcon} style={{ width: 25, height: 25 }}/>
+                  <Text style={{ flexGrow: 1, color: 'black' }}>{value.date_start}</Text>
+                </View>
+                <Text style={{ color: 'black', fontWeight: '600', textAlign: 'left', width: '100%', flexShrink: 1 }}>{value.name}</Text>
+            </TouchableOpacity>
+          ))}
 
           <Text style={cardBodyStyles.cardSeparatorTitle}>Pengumuman Aktif</Text>
           <TouchableOpacity style={cardBodyStyles.announcementCardWrapper}>
@@ -528,11 +597,9 @@ const CardBody = (props) => {
             </View>
           ) : ''}
           <Text style={cardBodyStyles.cardSeparatorTitle}>Riwayat Aktivitas</Text>
-          
         </View>
-      )}
-
-      <View style={cardBodyStyles.cardBodyActivityWrapper}>
+      )} */}
+      {/* <View style={cardBodyStyles.cardBodyActivityWrapper}>
         <Text style={cardBodyStyles.cardSeparatorTitle}>Riwayat Aktivitas</Text>
         <View style={cardBodyStyles.activityHistoryWrapper}>
           <ActivityHistory activityHistory={{ status: 'checkin', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }}/>
@@ -543,7 +610,8 @@ const CardBody = (props) => {
           <ActivityHistory activityHistory={{ status: 'checkout', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }}/>
           <ActivityHistory activityHistory={{ status: 'checkin', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }} />
         </View>
-      </View>
+      </View> */}
+
     </View>
   )
 
@@ -554,7 +622,7 @@ const ActivityHistory = (props) => {
 
   useEffect(() => {
     setActivityHistory(props.activityHistory);
-  })
+  }, [])
 
   if (activityHistory) {
     return (
@@ -579,22 +647,21 @@ const ActivityHistory = (props) => {
 }
 
 const Footer = (props) => {
-  const [isCheckout, setIsCheckout] = useState(false);
+  const [isCheckin, setIsCheckin] = useState(false);
 
   const navigation = useNavigation();
-
   const navigateToAlarm = () => {
     navigation.navigate('Alarm');
   };
 
   useEffect(() => {
-    setIsCheckout(props.isCheckout)
-  })
+    setIsCheckin(props.isCheckin)
+  }, [props.isCheckin])
 
   return (
     <View style={footerStyles.footerContainer}>
       <Text style={footerStyles.footerTitle}>PLN TANGGAP</Text>
-      {isCheckout ? (
+      {isCheckin ? (
         <View style={footerStyles.emergencyContainer}>
           <Text style={footerStyles.emergencyText}>ALARM <Text style={{ color: '#ed1c24' }}>DARURAT</Text></Text>
           <TouchableOpacity style={footerStyles.emergencyBtnContainer} onPress={navigateToAlarm}>

@@ -24,6 +24,7 @@ import NotificationAlert from './src/pages/NotificationAlert/index.js';
 
 // import { TokenContext } from './appContext.js';
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import SimulationInfo from './src/pages/SimulationInfo/index.js';
 
 
 emergencyNotificationChannel();
@@ -99,6 +100,10 @@ const HomeStack = () => {
       <Stack.Screen
         name="CreateSimulation"
         component={CreateSimulation}
+        />
+      <Stack.Screen
+        name="SimulationInfo"
+        component={SimulationInfo}
         />
       <Stack.Screen
         name="Alarm"

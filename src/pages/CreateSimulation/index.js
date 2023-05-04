@@ -8,13 +8,9 @@ import TimeInputPicker from '../../components/timeInputPicker';
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
-import { child, off, onValue, push, ref, set } from 'firebase/database';
+import { child, onValue, push, ref, set } from 'firebase/database';
 import { db } from '../../config/firebase';
-import { useResponsiveQuery } from 'native-base/lib/typescript/utils/useResponsiveQuery/useResponsiveQuery';
-import { min } from 'moment';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { v4 as uuidv4 } from 'uuid';
 
 const PageContentCard = ({ navigation }) => {
   // Get device token
@@ -83,9 +79,9 @@ const PageContentCard = ({ navigation }) => {
     console.log('starting to validate')
     const save_name = inputName;
     const save_location = selectedItem.key;
+    const save_location_name = selectedItem.label;
 
     // Handle Time
-    const save_time = inputTime;
     const [hours, minutes] = inputTime.split(':');
     const formattedTime = `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
     const saved_date = inputDate;
@@ -99,6 +95,7 @@ const PageContentCard = ({ navigation }) => {
         name: save_name,
         date_start: format_datetime(save_datetime),
         location: save_location,
+        location_name: save_location_name,
         status: simulation_status,
       });
       console.log('storing completed');
