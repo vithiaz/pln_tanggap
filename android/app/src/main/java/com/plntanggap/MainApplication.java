@@ -10,6 +10,9 @@ import com.facebook.react.defaults.DefaultReactNativeHost;
 import com.facebook.soloader.SoLoader;
 import java.util.List;
 
+// import io.invertase.firebase.dynamiclinks.ReactNativeFirebaseDynamicLinksPackage;
+
+
 // 
 // import com.reactcommunity.rndatetimepicker.RNDateTimePickerPackage;
 
@@ -32,6 +35,11 @@ public class MainApplication extends Application implements ReactApplication {
 
           // 
           // packages.add(new RNDateTimePickerPackage());
+
+          // Remove if error
+          // packages.add(new MainReactPackage());
+          // packages.add(new ReactNativeFirebaseDynamicLinksPackage());
+          // 
 
 
           return packages;

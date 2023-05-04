@@ -2,6 +2,7 @@ import { Linking } from 'react-native';
 import PushNotification from 'react-native-push-notification';
 import { useNavigation } from '@react-navigation/native';
 import Alarm from './src/pages/Alarm';
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 
 class NotificationHandler {
@@ -16,7 +17,17 @@ class NotificationHandler {
   }
 
   onRegister(token) {
-    console.log('NotificationHandler:', token);
+    console.log(token);
+    const storeData = async (value) => {
+      try {
+        const jsonValue = JSON.stringify(value)
+        AsyncStorage.setItem('@device_token', jsonValue)
+        console.log('stored token: ', value);
+      } catch (e) {
+        console.log('storing data error: ', e);
+      }
+    }
+    storeData(token.token);
 
     if (typeof this._onRegister === 'function') {
       this._onRegister(token);

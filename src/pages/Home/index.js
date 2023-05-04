@@ -20,6 +20,7 @@ import {
   ScrollViewComponent,
   Dimensions,
   Alert,
+  FlatList,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
@@ -36,19 +37,28 @@ import timeIcon from '../../assets/icon/time.png';
 import LogoutIcon from '../../assets/icon/check_in_out.png';
 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-// import auth from 'firebase/auth';
-import { auth } from '../../config/firebase';
+import firebase from 'firebase/app';
+import 'firebase/database';
+
+import { auth, db } from '../../config/firebase';
+import { getDatabase, ref, onValue, get, child, limitToLast, equalTo, push, set, query, orderByChild, update, remove } from "firebase/database";
 
 import PushNotification, { PushNotificationHandler } from 'react-native-push-notification';
 import NotifService from '../../../notifService.js';
 
-import messaging from '@react-native-firebase/messaging';
+// import messaging from '@react-native-firebase/messaging';
 import { Linking } from 'react-native';
 
 import { Vibration } from 'react-native';
+import { TokenContext } from '../../../route';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Modal } from 'native-base';
+import CheckinLocationPicker from '../../components/checkinLocationPicker';
+import { addDoc, updateDoc } from 'firebase/firestore';
+import { convertAbsoluteToRem } from 'native-base/lib/typescript/theme/tools';
 
 
-const Home = ({ navigation }) => {
+const Home = ({ navigation }) => { 
   // React Native Firebase Messaging
   // useEffect(() => {
   //   const unsubscribe = messaging().onMessage(async remoteMessage => {
@@ -60,8 +70,6 @@ const Home = ({ navigation }) => {
 
   //   return unsubscribe;
   // }, []);
-
-
 
   // // Push Notification
   const [registerToken, setRegisterToken] = useState('');
@@ -75,64 +83,118 @@ const Home = ({ navigation }) => {
   // const onNotif = (notif) => {
   //   navigation.navigate('Alarm')
   // }
- 
   // const notif = new NotifService(onRegister, onNotif);
   // const handlePerm = (perms) => {
   //   Alert.alert('Permissions ', JSON.stringify(perms));
   // }
 
   const [user, setUser] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+  const [userUID, setUserUID] = useState(null);
+  const [username, setUsername] = useState(null);
+  const [userType, setUserType] = useState(null);
 
+  // Handle Checkin/Checkout Info
+  const [isCheckin, setIsCheckin] = useState(false);
+  const [checkinId, setCheckinId] = useState(false);
+
+
+  // Read User Info
+  const readUserInfo = currentUser => {
+    if (currentUser != null) {
+      onValue(ref(db, '/users/' + currentUser.uid), (snapshot) => {
+        setUserUID(currentUser.uid)
+        // snapshot.forEach((childSnapshot) => {
+            setUserInfo(snapshot.val())
+            setUsername(snapshot.val().username)
+            setUserType(snapshot.val().user_type)
+            
+            if (snapshot.hasChild('checkin_id')) {
+              setIsCheckin(true)
+              setCheckinId(snapshot.val().checkin_id)
+            } else {
+              // setIsCheckin(false)
+              setCheckinId(false)
+            }
+        // });
+      }, {
+        onlyOnce: true
+      });
+    }
+  }
+
+  // Handling User login credential
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth,
         async authenticatedUser => {
-          authenticatedUser ? setUser(authenticatedUser) : setUser(null);
+          if (authenticatedUser) {
+            setUser(authenticatedUser)
+          } else {
+            setUser(null);
+            setUserInfo(null);
+            setUsername(null);
+            setUserType(null);
+            setUserUID(null);
+          }
+          console.log('user state changed')
+          readUserInfo(user)
         }
       );
-    return () => unsubscribe();
+      return () => unsubscribe();
   }, [user]);
+
+  // Handling checkout state
 
   
   const isHost = true;
-  const isCheckout = true;
   const currentDate = new Date();
   const announcementMessage = 'Hari ini akan dilaksanakan simulasi pada pukul 14:00. Diharapkan agar semua yang berada di dalam gedung kantor untuk menjalankan protokol evakuasi.';
-  const checkinData = {
-    checkinLocation: 'PLN Kawangkoan',
-    checkinDate: currentDate.toString(),
-    checkinTime: currentDate.getHours() + ':' + (currentDate.getMinutes() < 10 ? ('0' + currentDate.getMinutes()) : (currentDate.getMinutes())),
-  }
 
   return (
     <View style={styles.appView}>
       <Navbar
-        user={user}
-        username={ "John Doe" }
-        isHost={isHost}
-        profileImage={ false } />
+        username={username}
+        userType={userType}
+        userProfile={false}
+      />
       <ScrollView endFillColor={ '#F4F7FF' }>
         <CheckoutInfo
-          checkinState={ isCheckout }
-          checkinData={checkinData}/>
-          {isHost && isCheckout == true ? (
-            <HostMenu isHost={isHost} isCheckin={isCheckout} />
+          user={user}
+          userUID={userUID}
+          userInfo = {userInfo}
+          checkin={isCheckin}
+          setCheckin={setIsCheckin}
+          checkinState={ !isCheckin }/>
+          {userType == 'host' ? (
+            <HostMenu isHost={true} isCheckin={!isCheckin} />
           ) : ''}
         <CardBody
           announcement={announcementMessage}
           isHost={isHost}/>
       </ScrollView>
-      <Footer isCheckout={isCheckout} />
+      <Footer isCheckout={!isCheckin} />
     </View>
   );
 }
 
 const Navbar = (props) => {
-  const [username, setUsername] = useState(false);
-  const [userProfile, setUserProfile] = useState(false);
-  const [isHost, setIsHost] = useState(false);
-  const [user, setUser] = useState(false);
-
   const navigation = useNavigation();
+
+  const [userProfile, setUserProfile] = useState(null)
+  const [userType, setUserType] = useState('')
+  const [username, setUsername] = useState('')
+
+  const setAttribute = () => {
+    setUserProfile(props.userProfile)
+    setUserType(props.userType)
+    setUsername(props.username)
+  }
+  
+  useEffect(() => {
+    if (props) {
+      setAttribute()
+    }
+  }, [props])
 
   const navigateToLogin = () => {
     navigation.navigate('Login');
@@ -141,20 +203,15 @@ const Navbar = (props) => {
   const logout = () => {
     signOut(auth).then(() => {
       console.log('Logged out')
+      setAttribute()
+      setUserProfile(null);
+      setUserType(null);
+      setUsername(null);
     }).catch((error) => {
       console.log('error: ', error)
     });
-    
-  
   };
 
-  useEffect(() => {
-    setUsername(props.username);
-    setUserProfile(props.profileImage);
-    setIsHost(props.isHost);
-    setUser(props.user);
-  })
-  
   return (
     <View style={navbarStyles.navbarContainer}>
       <View style={navbarStyles.navbarPLNLogoWrapper}>
@@ -171,15 +228,15 @@ const Navbar = (props) => {
             <Image source={userDefaultIcon} style={navbarStyles.profileImage} />
           )}
         </View>
-          {user != null ? (
+          {username ? (
               <View style={navbarStyles.usernameWrapper}>
                 <Text style={navbarStyles.welcomeText}>
                   Selamat Datang,
                 </Text>
                 <Text style={navbarStyles.usernameText}>
-                  User
+                  {username}
                 </Text>
-                {isHost ? (
+                {userType == 'host' ? (
                   <Text >
                     Host
                   </Text>
@@ -193,7 +250,7 @@ const Navbar = (props) => {
               </View>
             )}
         
-        {user ? (
+        {(username != null) ? (
           <TouchableOpacity style={navbarStyles.settingsBtn} onPress={logout}>
             <Image source={LogoutIcon} style={navbarStyles.settingsBtnIcon} />
           </TouchableOpacity>
@@ -208,19 +265,137 @@ const Navbar = (props) => {
 }
 
 const CheckoutInfo = (props) => {
-  const [isCheckin, setIsCheckin] = useState(false);
+  // Get device token
+  const [deviceToken, setDeviceToken] = useState('');
+  const getDeviceToken = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@device_token')
+      setDeviceToken(value)
+    } catch(e) {
+      console.log(e);
+    }
+  }
+  getDeviceToken();
+
+  // const [isCheckin, setIsCheckin] = useState(false);
   const [checkinDataInfo, setCheckinData] = useState(false);
 
-  useEffect(() => {
-    setIsCheckin(props.checkinState);
-    setCheckinData(props.checkinData);
+  const [office, setOffice] = useState([]);
+
+  useEffect( () => {     
+    onValue(ref(db, '/offices/'), (snap) => {
+      setOffice([])
+      const data = snap.val();
+      if (data !== null) {
+        Object.values(data).map(() => {
+          setOffice(data)
+        })
+      }
+    })
   }, [])
+
+  const officeSelect = Object.entries(office).map(([key, value]) => ({ key: key, label: value.name }));
+
+  function getCurrentTime() {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const year = now.getFullYear();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  const handleSelectedLocation = (checkinLocation) =>
+  {
+    // Device Token
+    const token_raw = deviceToken
+    const token_clean = token_raw.replace(/^"(.+(?="$))"$/, '$1');
+    
+    // Create CheckinData Table if Logged id
+    if (auth.currentUser != null) {
+      const attemptKey = push(child(ref(db), 'checkin_data')).key;
+      const tableRef = ref(db, 'checkin_data/' + attemptKey)
+      try {
+        set(tableRef, {
+          device_token: token_clean,
+          checkin_time: getCurrentTime(),
+          checkout_time: null,
+          user_UID: props.userUID,
+          location_id: checkinLocation.key
+        });
+        console.log('storing completed');
+        props.setCheckin(true);
+      } catch(e) {
+        console.log('Error while storing the data: ', e);
+      }
+      // Store CheckinID in Users
+      try {
+        const dataupdate = {
+          checkin_id: attemptKey
+        }
+        const userUpdateRef = ref(db, 'users/' + props.userUID);
+        update(userUpdateRef, { checkin_id: attemptKey })
+      } catch(e) {
+        console.log('Updating user to checkin failed: ', e)
+      }
+
+    }
+    // else Create GuestCheckin Table
+    {
+      // const attemptKey = push(child(ref(db), 'guest_checkin')).key;
+      const tableRef = ref(db, 'guest_checkin/' + token_clean)
+      try {
+        set(tableRef, {
+          device_token: token_clean,
+          checkin_time: getCurrentTime(),
+          checkout_time: null,
+          location_id: checkinLocation.key
+        });
+        props.setCheckin(true)
+        console.log('storing completed');
+      } catch(e) {
+        console.log('Error while storing the data: ', e);
+      }
+    }
+
+  }
+
+  const handleCheckoutButton = () => {
+    const token_raw = deviceToken
+    const token_clean = token_raw.replace(/^"(.+(?="$))"$/, '$1');
+
+    if (props.userUID != null) {
+      // Resetting user
+      try {
+        const userUpdateRef = ref(db, 'users/' + props.userUID);
+        update(userUpdateRef, { checkin_id: null })
+        props.setCheckin(false);
+      } catch(e) {
+        console.log('Updating user to checkin failed: ', e)
+      }
+    }
+    else {
+      const tableRef = ref(db, 'guest_checkin/' + token_clean)
+      try {
+        remove(tableRef);
+        console.log('Checkout data removed');
+        props.setCheckin(false);
+      }
+      catch(e) {
+        console.log('Error while try to remove the data: ', e)
+      }
+    }
+    
+
+  }
 
   return (
     <View style={checkoutInfoStyles.mainWrapper}>
-      {isCheckin ? (
+      {props.checkin ? (
         <View style={checkoutInfoStyles.checkoutWrapper}>
-          <TouchableOpacity style={checkoutInfoStyles.checkoutBtn}>
+          <TouchableOpacity style={checkoutInfoStyles.checkoutBtn} onPress={handleCheckoutButton}>
             <View style={checkoutInfoStyles.btnBg} />
             <Image source={CheckInOutIcon} style={checkoutInfoStyles.checkoutIcon} />
             <Text style={checkoutInfoStyles.checkoutBtnText}>
@@ -231,26 +406,12 @@ const CheckoutInfo = (props) => {
             <Text style={checkoutInfoStyles.checkoutInfoMessage}>
               Silahkan <Text style={{ fontWeight: 600 }}>Check-out</Text>, setelah meninggalkan area kantor
             </Text>
-          </View>
+          </View> 
         </View>
       ) : (
-        <View style={checkoutInfoStyles.checkoutWrapper}>
-          <TouchableOpacity style={checkoutInfoStyles.checkoutBtn}>
-            <View style={checkoutInfoStyles.btnBg} />
-            <Image source={CheckInOutIcon} style={checkoutInfoStyles.checkoutIcon} />
-            <Text style={checkoutInfoStyles.checkoutBtnText}>
-              Check-in
-            </Text>
-          </TouchableOpacity>
-          <View style={checkoutInfoStyles.checkoutInfoMessageWrapper}>
-            <Text style={checkoutInfoStyles.checkoutInfoMessage}>
-              Silahkan <Text style={{ fontWeight: 600 }}>Check-in</Text>, setelah memasuki area kantor
-            </Text>
-          </View>
-        </View>
-
+        <CheckinLocationPicker items={officeSelect} onSelect={handleSelectedLocation} />
       )}
-      {isCheckin ? (
+      {props.checkin ? (
         <TouchableOpacity style={checkoutInfoStyles.locationCardWrapper}>
           <Image source={OfficeIcon} style={checkoutInfoStyles.officeIcon} />
           <View style={checkoutInfoStyles.locationInfoWrapper} >
@@ -320,7 +481,20 @@ const CardBody = (props) => {
       {isHost ? (
         <View style={cardBodyStyles.cardBodyWrapper}>
           <Text style={cardBodyStyles.cardSeparatorTitle}>Simulasi Terjadwal</Text>
-          <TouchableOpacity style={cardBodyStyles.simulationCardWrapper}>
+          <TouchableOpacity style={cardBodyStyles.announcementCardWrapper}>
+            <View style={{ flexDirection: 'row', gap: 20 }}>
+              <Image source={OfficeIcon} style={{ width: 25, height: 25 }}/>
+              <Text style={{ flexGrow: 1, color: 'black' }}>PLN Kawangkoan</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 20 }}>
+              <Image source={timeIcon} style={{ width: 25, height: 25 }}/>
+              <Text style={{ flexGrow: 1, color: 'black' }}>23 April 2023</Text>
+            </View>
+            <Text style={{ color: 'black', fontSize: 18, fontWeight: '600' }}>Simulasi Kebakaran</Text>
+          </TouchableOpacity>
+
+
+          {/* <TouchableOpacity style={cardBodyStyles.simulationCardWrapper}>
             <Image source={bellRingingIcon} style={cardBodyStyles.simulationIcon}/>
             <View style={cardBodyStyles.simulationInfoWrapper}>
               <Text style={cardBodyStyles.simulationNameText}>Nama Simulasi</Text>
@@ -330,7 +504,7 @@ const CardBody = (props) => {
             <View style={cardBodyStyles.simulationTimeWrapper}>
               <Text style={cardBodyStyles.simulationJamText}>Jam</Text>
             </View>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <Text style={cardBodyStyles.cardSeparatorTitle}>Pengumuman Aktif</Text>
           <TouchableOpacity style={cardBodyStyles.announcementCardWrapper}>

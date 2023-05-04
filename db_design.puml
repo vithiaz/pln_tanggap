@@ -6,51 +6,71 @@ Entity users {
     * email STRING
     * password STRING
     * user_type ENUM('host', 'security', 'guest')
+    device_token UID UNIQUE
+    office UID FOUREIGN(office.id)
 }
 
-Entity checkin_locations {
+Entity offices {
     * id UID PRIMARYKEY
     * name STRING
+    * safe_point_id UID
 }
 
 Entity checkin_data {
     * id UID PRIMARYKEY
-    * device_token TEXT
+    * device_token TEXT UNIQUE
     * checkin_time DATETIME
     checkout_time DATETIME
     --
-    user UID FOREIGN(users.id)
-    * location UID FOREIGN(checkin_locations.id)
+    user UID FOUREIGN(users.id)
+    * location UID FOUREIGN(offices.id)
 }
 
-Entity userprofile {
-    * id VARCHAR PRIMARYKEY
-}
+' Entity alert_notifications {
+'     * id UID PRIMARYKEY
+'     * triggered_user UID FOUREIGN(users.id)
+'     * location UID FOUREIGN(offices.id)
+'     * notification_time DATETIME
+'     * activation_status BOOLEAN
+' }
 
-Entity alert_notifications {
+' Entity alert_notifications_member {
+'     * id UID PRIMARYKEY
+'     * alert_notification UID FOUREIGN(alert_notifications.id)
+'     * registered_user UID FOUREIGN(user.id)
+'     * confirmation_date DATETIME
+' }
+
+Entity simulations {
     * id UID PRIMARYKEY
-    * triggered_user UID FOREIGN(users.id)
-    * location UID FOREIGN(checkin_locations.id)
-    * notification_time DATETIME
-    * activation_status BOOLEAN
+    * name STRING
+    * location FOUREIGN(offices.id)
+    * date_start DATETIME
+    quota INT
+    * status ENUM("pending", "active", "ended")
 }
 
-Entity alert_notifications_member {
+Entity simulation_member {
     * id UID PRIMARYKEY
-    * alert_notification UID FOREIGN(alert_notifications.id)
-    * registered_user UID FOREIGN(user.id)
-    * confirmation_date DATETIME
+    * device_token TEXT UNIQUE
+    * simulation_id FOUREIGN(simulations.id)
+    user UID FOUREIGN(users.id)
+    secure_state BOOLEAN
+    ' secure state == true if member's scanned the barcode for office.safe_point_id
 }
 
 
 ' Relation
 users ||--o{ checkin_data
-checkin_locations ||--o{ checkin_data
-checkin_locations ||--o{ alert_notifications
-alert_notifications ||--o{ alert_notifications_member
-alert_notifications_member --|| users
-alert_notifications --|| users
+users }o--o| offices
+offices ||--o{ checkin_data
+' offices ||--o{ alert_notifications
+' alert_notifications ||--o{ alert_notifications_member
+' alert_notifications_member --|| users
+' alert_notifications --|| users
 
-alert_notification }o--|| userprofile
+simulations }o--|| offices
+simulations ||--o{ simulation_member
+simulation_member }o--o| users
 
 @enduml

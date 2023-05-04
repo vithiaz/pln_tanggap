@@ -1,31 +1,68 @@
 import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth, db } from '../../config/firebase.js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-
-import { auth } from '../../config/firebase';
-
+import { child, push, ref, set, update } from 'firebase/database';
 
 const PageContentCard = (props) => {
+  const [deviceToken, setDeviceToken] = useState('');
+  const getDeviceToken = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@device_token')
+      setDeviceToken(value)
+    } catch(e) {
+      console.log(e);
+    }
+  }
+  useEffect(() => {
+    getDeviceToken()
+  })
+
+
   const [email, setEmail] = useState(null);
   const [password, setPassword] = useState(null);
 
+  const updateDeviceToken = () => {
+    // const newPostKey = push(child(ref(db), 'users/' + auth.currentUser.uid)).key;
+    const updates = {};
+    updates['/users/' + auth.currentUser.uid + '/device_token'] = deviceToken;
+    update(ref(db), updates)
+  }
+  
   const onHandleLogin = () => {
     if (email !== "" && password !== "") {
       signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
-          console.log("Login Success");
-          props.redirect();
-          // navigation.goBack()
-        })
-        .catch((err) => console.log('Login error : ', err))
-    }
-    //   createUserWithEmailAndPassword(auth, email, password)
-    //     .then(() => console.log("Login Success"))
-    //     .catch((err) => console.log('Login error : ', err))
-    // }
+          .then((userCredential) => {
+            console.log("Login Success");
+            updateDeviceToken();
+            props.redirect();
+            // navigation.goBack()
+          })
+          .catch((err) => console.log('Login error : ', err))
+      }
+
+      // createUserWithEmailAndPassword(auth, email, password)
+      //   .then((userCredential) => {
+      //     try {
+      //       set(ref(db, 'users/' + userCredential.user.uid), {
+      //         email: userCredential.user.email,
+      //         name: '',
+      //         user_type: 'guest',
+      //         device_token : deviceToken
+      //       });
+      //       console.log('Register success with id', userCredential.user.uid);
+      //     }
+      //     catch(e) {
+      //       console.log('Register failed: ', e);
+      //     }
+      //   })
+      // }
+
   }
 
   return (
@@ -50,7 +87,7 @@ const PageContentCard = (props) => {
               onChangeText={(text) => setPassword(text)}
             ></TextInput>
           </View>
-          <TouchableOpacity style={contentCardStyles.LoginButton} onPress={onHandleLogin}>
+          <TouchableOpacity style={contentCardStyles.LoginButton} onPress={() => onHandleLogin()}>
             <Text style={contentCardStyles.LoginButtonText}>LOGIN</Text>
           </TouchableOpacity>
         </View>
@@ -67,7 +104,9 @@ const PageContentCard = (props) => {
 }
 
 
+
 export default Login = ({ navigation }) => {
+  
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#00AEEF', width: '100%', flexDirection: 'column' }}>
       <SafeAreaView style={{ height: '100%', }}>

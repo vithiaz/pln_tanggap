@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "316170330807",
+    "project_id": "pln-tanggap-772a9",
+    "storage_bucket": "pln-tanggap-772a9.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:316170330807:android:a5862841dbb57dfebf2332",
+        "android_client_info": {
+          "package_name": "com.plntanggap"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "316170330807-51n8gbm1bg0av01dhnk1knmkmpa5r30u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHtQ6pYYzJSYP1WUW30FzmwVhC4cRhRcQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "316170330807-51n8gbm1bg0av01dhnk1knmkmpa5r30u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

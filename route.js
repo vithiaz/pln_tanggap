@@ -22,6 +22,9 @@ import AlarmActive from './src/pages/Alarm/alarm_active.js';
 import NotificationAlert from './src/pages/NotificationAlert/index.js';
 // import Alarm from './src/pages/Alarm';
 
+// import { TokenContext } from './appContext.js';
+import AsyncStorage from "@react-native-async-storage/async-storage"
+
 
 emergencyNotificationChannel();
 messaging().requestPermission();
@@ -106,30 +109,40 @@ const HomeStack = () => {
 
 }
 
+export const TokenContext = createContext();
+
 const App = () => {
 
-  useEffect(() => {
-    const getUrlAsync = async () => {
-      // Get the deep link used to open the app
-      const initialUrl = await Linking.getInitialURL();
+  // Use this for update the device token value in token context provider
+  const [deviceToken, setDeviceToken] = useState('');
+  const handleUpdateDeviceToken = (token) => {
+    setDeviceToken(token);
+  };
+  
+  // useEffect(() => {
+  //   const getUrlAsync = async () => {
+  //     // Get the deep link used to open the app
+  //     const initialUrl = await Linking.getInitialURL();
 
-      // The setTimeout is just for testing purpose
-      setTimeout(() => {
-        console.log('linking: ', initialUrl);
-      }, 1000);
-    };
+  //     // The setTimeout is just for testing purpose
+  //     setTimeout(() => {
+  //       console.log('linking: ', initialUrl);
+  //     }, 1000);
+  //   };
 
-    getUrlAsync();
-  }, []);
+  //   getUrlAsync();
+  // }, []);
 
   
 
   return (
-    <AuthUserProvider>
-      <NavigationContainer >
-          <HomeStack />
-      </NavigationContainer>
-    </AuthUserProvider>
+    // <TokenContext.Provider value={{ deviceToken, setDeviceToken }}>
+      <AuthUserProvider>
+        <NavigationContainer >
+            <HomeStack />
+        </NavigationContainer>
+      </AuthUserProvider>
+    // </TokenContext.Provider>
   );
 };
 

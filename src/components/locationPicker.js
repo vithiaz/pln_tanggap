@@ -36,7 +36,7 @@ const LocationPicker = ({ items, selectedItem, onSelect }) => {
         <View style={styles.modalContainer}>
           <FlatList
             data={items}
-            keyExtractor={(item) => item.value}
+            keyExtractor={(item) => item.key}
             renderItem={({ item }) => (
               <TouchableWithoutFeedback onPress={() => {
                 onSelect(item);
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     fontSize: 16,
+    color: 'black',
   },
 });
 

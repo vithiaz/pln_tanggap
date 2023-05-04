@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 
 import LocationPicker from '../../components/locationPicker';
@@ -8,31 +8,105 @@ import TimeInputPicker from '../../components/timeInputPicker';
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
+import { child, off, onValue, push, ref, set } from 'firebase/database';
+import { db } from '../../config/firebase';
+import { useResponsiveQuery } from 'native-base/lib/typescript/utils/useResponsiveQuery/useResponsiveQuery';
+import { min } from 'moment';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PageContentCard = () => {
-    const [selectedItem, setSelectedItem] = useState(false);
-    const [date, setDate] = useState(null);
-    const [inputDate, setInputDate] = useState(false);
+import { v4 as uuidv4 } from 'uuid';
 
-
-    const handleSelect = (itemPicker) => {
-        setSelectedItem(itemPicker);
-    };
-    
-    const handleDateChange = (date) => {
-        setInputDate(date);
+const PageContentCard = ({ navigation }) => {
+  // Get device token
+  const [deviceToken, setDeviceToken] = useState('');
+  const getDeviceToken = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@device_token')
+      setDeviceToken(value)
+    } catch(e) {
+      console.log(e);
     }
+  }
+  
+  const [selectedItem, setSelectedItem] = useState(false);
+  const [date, setDate] = useState(null);
+  const [inputDate, setInputDate] = useState(false);
+  const [inputTime, setInputTime] = useState(false);
+  const [inputName, setInputName] = useState('');
 
-    const handleTimeChange = (time) => {
-        // console.log(time);
-    };
+  const [office, setOffice] = useState([]);
+  // const [itemPicker, setItemPicker] = useState({});
+
+  useEffect( () => {     
+    onValue(ref(db, '/offices/'), (snap) => {
+      setOffice([])
+      const data = snap.val();
+      if (data !== null) {
+        Object.values(data).map(() => {
+          setOffice(data)
+        })
+      }
+    })
+  }, [])
     
-        
-    const itemPicker = [
-        { label: 'Option 1', value: 'option1' },
-        { label: 'Option 2', value: 'option2' },
-        { label: 'Option 3', value: 'option3' },
-    ];
+  const handleSelect = (itemPicker) => {
+      setSelectedItem(itemPicker);
+  };
+  
+  const handleDateChange = (date) => {
+      setInputDate(date);
+
+    }
+    const handleTimeChange = (time) => {
+      // console.log(time);
+      setInputTime(time);
+  };
+
+  const handleSimulationName = (text) => {
+    setInputName(text);
+  }
+  
+  const officeSelect = Object.entries(office).map(([key, value]) => ({ key: key, label: value.name }));
+  
+  function format_datetime(dateString) {
+    const date = new Date(dateString);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+    return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  const storeSimulation = () => {
+    console.log('starting to validate')
+    const save_name = inputName;
+    const save_location = selectedItem.key;
+
+    // Handle Time
+    const save_time = inputTime;
+    const [hours, minutes] = inputTime.split(':');
+    const formattedTime = `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+    const saved_date = inputDate;
+    const dateTimeStr = `${saved_date}T${formattedTime}:00.000Z`;
+    const save_datetime = new Date(Date.parse(dateTimeStr));
+    const simulation_status = 'pending';
+
+    try {
+      const attemptKey = push(child(ref(db), 'simulations')).key;
+      set(ref(db, 'simulations/' + attemptKey), {
+        name: save_name,
+        date_start: format_datetime(save_datetime),
+        location: save_location,
+        status: simulation_status,
+      });
+      console.log('storing completed');
+      navigation.navigate('Home');
+    } catch(e) {
+      console.log('Error while storing the data: ', e);
+    }
+  }
 
     return (
     <View style={contentCardStyles.contentCard}>
@@ -41,11 +115,11 @@ const PageContentCard = () => {
         <View style={contentCardStyles.cardBody} >
             <View style={contentCardStyles.formInput}>
                 <Text style={contentCardStyles.formInputLabel}>Nama Simulasi</Text>
-                <TextInput style={contentCardStyles.formInputText} placeholder='simulasi'></TextInput>
+                <TextInput style={contentCardStyles.formInputText} placeholder='simulasi' onChangeText={handleSimulationName}></TextInput>
             </View>
 
             <Text style={contentCardStyles.formInputLabel}>Lokasi</Text>
-            <LocationPicker items={itemPicker} selectedItem={selectedItem} onSelect={handleSelect} />
+            <LocationPicker items={officeSelect} selectedItem={selectedItem} onSelect={handleSelect} />
 
             <Text style={contentCardStyles.formInputLabel}>Tanggal dan Waktu</Text>
             {/* Input Date Picker */}
@@ -55,7 +129,7 @@ const PageContentCard = () => {
             </View>
             
             {/* Buttons */}
-            <TouchableOpacity style={contentCardStyles.SubmitButton}>
+            <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={storeSimulation}>
                 <Text style={contentCardStyles.SubmitButtonText}>ATUR SIMULASI</Text>
             </TouchableOpacity>
             <TouchableOpacity style={contentCardStyles.AbortButton}>
@@ -74,8 +148,8 @@ const PageContentCard = () => {
   )
 }
 
-
 export default CreateSimulation = ({ navigation }) => {
+  // console.log(navigation);
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
       <SafeAreaView style={{ height: '100%', }}>
@@ -90,10 +164,9 @@ export default CreateSimulation = ({ navigation }) => {
             <TouchableOpacity style={styles.pageIconContainer} >
                 <Image source={bellRingingIcon} style={styles.pageIcon}/>
             </TouchableOpacity>
-
           </View>
         </View>
-        <PageContentCard />
+        <PageContentCard navigation={navigation}/>
       </SafeAreaView>
     </ScrollView>
   )
