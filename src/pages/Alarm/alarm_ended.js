@@ -8,21 +8,39 @@ import {
   Image
 } from 'react-native'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import BackIcon from '../../assets/icon/back.png'
 import CheckIcon from '../../assets/icon/check.png'
 import AlertIcon from '../../assets/icon/alert.png'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export default function AlarmEnded() {
+export default function AlarmEnded({ navigation, route }) {
   const infoMessage = 'Tetap di lokasi evakuasi sampai keadaan darurat selesai';
-  const infoMessageHeader = 'KEADAAN DARURAT!!!';
+  const infoMessageHeader = 'PERHATIAN ...';
+  const [timeCount, setTimeCount] = useState('00:00')
+
+  const getCounter = async () => {
+    try {
+      const value = JSON.parse(await AsyncStorage.getItem('@counterData'))
+      console.log('counter Data', value)
+      setTimeCount(value);
+    } catch(e) {
+      console.log(e);
+    }
+  }
+  useEffect(() => {
+    getCounter();
+    AsyncStorage.removeItem('@counterData');
+  }, [])
+
+
   
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#FFF200', width: '100%', flexDirection: 'column' }}>
       <SafeAreaView style={{ height: '100%', }}>
         <View style={styles.pageContainer}>
           <View style={styles.topNavigationWrapper}>
-            <TouchableOpacity style={styles.button} onPress={() => {navigation.goBack()}}>
+            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
               <Image source={BackIcon} style={styles.buttonIcon} />
             </TouchableOpacity>
           </View>
@@ -35,11 +53,12 @@ export default function AlarmEnded() {
             
             {/* Time Wrapper */}
             <View style={styles.timerWrapper}>
-              <Text style={styles.timerNumber}>00</Text>
+              <Text style={styles.timerNumber}>{timeCount}</Text>
+              {/* <Text style={styles.timerNumber}>00</Text>
               <Text style={styles.timerNumberSeparator}>:</Text>
               <Text style={styles.timerNumber}>00</Text>
               <Text style={styles.timerNumberSeparator}>:</Text>
-              <Text style={styles.timerNumber}>00</Text>
+              <Text style={styles.timerNumber}>00</Text> */}
             </View>
             
             {/* Info Wrapper */}
@@ -153,7 +172,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'black',
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
   timerNumberSeparator: {
     fontSize: 18,

@@ -5,6 +5,9 @@ import { getReactNativePersistence } from "firebase/auth/react-native"
 import { getDatabase } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
+const messagingServerKey = "AAAAPj9S_f0:APA91bH7vMbeKXGCqwvsgMs2g-dB1j5NPN_YaRda3VmgzFQeszTHP80HO2Ng559b_XscsPT0rIppBdI-Cq34IM_646Asuel84MmPEPzTLvXaR08idpz2s04BuZcZBtM-Q_ShpzXrurx9";
+const messagingApiUrl = "https://fcm.googleapis.com/fcm/send";
+
 const firebaseConfig = {
   apiKey: "AIzaSyADR9sca1GSQHXmFivh82jrReiQ8SkSMDE",
   authDomain: "pln-tanggap.firebaseapp.com",
@@ -21,7 +24,10 @@ initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
 
+
+
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-export { auth, db };
+
+export { messagingServerKey, messagingApiUrl, auth, db };

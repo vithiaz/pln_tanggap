@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import axios from 'axios';
 
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { push, child, ref, set, update } from 'firebase/database';
-import { db } from '../../config/firebase';
+import { push, child, ref, set, update, onValue } from 'firebase/database';
+import { db, messagingApiUrl, messagingServerKey } from '../../config/firebase';
 import { TouchEventType } from 'react-native-gesture-handler/lib/typescript/TouchEventType';
 
 export default SimulationInfo = ({route, navigation}) => {
@@ -15,6 +16,7 @@ export default SimulationInfo = ({route, navigation}) => {
     const userInfo = route.params.userInfo;
     const [isRegister, setIsRegister] = useState(false);
     const [isHost, setIsHost] = useState(false)
+    const [notificationIds, setNotificationIds] = useState([]);
 
     // Get device token
     const [deviceToken, setDeviceToken] = useState('');
@@ -88,6 +90,79 @@ export default SimulationInfo = ({route, navigation}) => {
         }
     }
 
+    const sendPushNotification = (notificationData) => {
+      axios({
+        method: 'POST',
+        url: messagingApiUrl,
+        headers: {
+          Authorization: `key=${messagingServerKey}`,
+          'Content-Type': 'application/json',
+        },
+        data: notificationData,
+      })
+        .then(response => {
+          console.log('Notification sent:', response.data);
+        })
+        .catch(error => {
+          console.log('Error sending notification:', error);
+        });
+    };
+
+    // Start Simulation
+    const handleStartSimulation = () => {
+      update(ref(db, 'simulations/' + simulationId), {
+        status: 'active',
+      })
+
+      if (!notificationIds.includes(deviceToken)) {
+        notificationIds.push(deviceToken);
+      }
+
+      const notificationData = {
+        registration_ids: notificationIds,
+        priority: "high",
+        notification: {
+          title: simulationData.name,
+          body: "Simulasi keadaan darurat " + simulationData.location_name,
+          sound: "alarm",
+          android_channel_id: "default",
+          // android_channel_id: "alarm_channel",
+          userInteraction: true,
+          autoCancel: true,
+          vibrate: true,
+          vibration: 1000,
+          ongoing: true,
+          show_in_foreground: true
+          // send_at: 0, // UNIX timestamp
+        },
+        data: {
+          notificationType: 'emergency',
+          simulation: true,
+          alarmKey: simulationId,
+          // trigerred_token: deviceToken,
+        }
+      }
+      console.log(notificationData)
+      sendPushNotification(notificationData);
+      navigation.pop();
+    }
+
+    // Getting simulations members to notify
+    useEffect(() => {
+      const unsubscribe = () => {
+        onValue(ref(db, '/simulations/' + simulationId + '/members'), (snap) => {
+        setNotificationIds([]);
+        const data_ids = [];
+        snap.forEach((snapchild) => {
+          const token = snapchild.val().device_token;
+          data_ids.push(token)
+        })
+        console.log('getting ids: ', data_ids)
+        setNotificationIds(data_ids);
+      })
+    }
+    return unsubscribe();
+    }, [])
 
     return (
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
@@ -145,7 +220,7 @@ export default SimulationInfo = ({route, navigation}) => {
                                 <TouchableOpacity style={contentCardStyles.DangerButton} onPress={handleCancelSimulation}>
                                     <Text style={contentCardStyles.DangerButtonText}>BATALKAN SIMULASI</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={contentCardStyles.SubmitButton}>
+                                <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={handleStartSimulation}>
                                     <Text style={contentCardStyles.SubmitButtonText}>MULAI SIMULASI</Text>
                                 </TouchableOpacity>
                             </>

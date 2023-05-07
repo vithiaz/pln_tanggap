@@ -28,6 +28,7 @@ import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import SettingsIcon from '../../assets/icon/settings.png';
 import CheckInOutIcon from '../../assets/icon/check_in_out.png';
 import OfficeIcon from '../../assets/icon/office.png';
+import BookmarkIcon from '../../assets/icon/bookmark.png';
 import AnnouncementIcon from '../../assets/icon/announcement.png';
 import AlertIcon from '../../assets/icon/alert.png';
 import userDefaultIcon from '../../assets/icon/user_default.png';
@@ -39,12 +40,12 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import firebase from 'firebase/app';
 import 'firebase/database';
 
-import { auth, db } from '../../config/firebase';
+import { auth, db, resetAuthPersistence } from '../../config/firebase';
 import { getDatabase, ref, onValue, get, child, limitToLast, equalTo, push, set, query, orderByChild, update, remove } from "firebase/database";
 
 import PushNotification, { PushNotificationHandler } from 'react-native-push-notification';
 import NotifService from '../../../notifService.js';
-
+import messaging from '@react-native-firebase/messaging'
 // import messaging from '@react-native-firebase/messaging';
 import { Linking } from 'react-native';
 
@@ -58,17 +59,19 @@ import { convertAbsoluteToRem } from 'native-base/lib/typescript/theme/tools';
 
 
 const Home = ({ navigation }) => {
-  // React Native Firebase Messaging
-  // useEffect(() => {
-  //   const unsubscribe = messaging().onMessage(async remoteMessage => {
-  //     console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
-  //     console.log('vibrate')
-  //     // const durationMs = 2 * 1000; // 120 seconds = 120,000 milliseconds
-  //     // Vibration.vibrate(durationMs);
-  //   });
-
-  //   return unsubscribe;
-  // }, []);
+  // const []
+  const getActiveAlarm = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@activeAlarm')
+      console.log('active Alarm', value)
+    } catch(e) {
+      console.log(e);
+    }
+  }
+  useEffect(() => {
+    // AsyncStorage.removeItem('@activeAlarm')
+    getActiveAlarm();
+  }, [])
 
   // // Push Notification
   const [registerToken, setRegisterToken] = useState('');
@@ -101,7 +104,6 @@ const Home = ({ navigation }) => {
 
   // Handling Token
   const [deviceToken, setDeviceToken] = useState('');
-  
   const getDeviceToken = async() => {
     try {
       const value = await AsyncStorage.getItem('@device_token')
@@ -110,7 +112,6 @@ const Home = ({ navigation }) => {
       console.log(e);
     }
   }
-
 
   const getIsCheckin = async () => {
     try {
@@ -209,6 +210,7 @@ const Home = ({ navigation }) => {
         <CardBody
           userAuth={user}
           userInfo={userInfo}
+          deviceToken={deviceToken}
           />
       </ScrollView>
       <Footer
@@ -532,14 +534,14 @@ const HostMenu = (props) => {
   }, [props])
 
   const navigation = useNavigation();
-  const navigateToCreateSimulaiton = () => {
+  const navigateToCreateSimulation = () => {
     navigation.navigate('CreateSimulation');
   }
   return (
     <View style={hostMenuStyles.hostMenuContainer}>
       <Text style={hostMenuStyles.containerTitle}>Host Menu</Text>
       <View style={hostMenuStyles.buttonWrapper}>
-        <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToCreateSimulaiton}>
+        <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToCreateSimulation}>
           <Image source={SettingsIcon} style={hostMenuStyles.buttonIcon}/>
           <Text style={hostMenuStyles.buttonText}>Simulasi</Text>
         </TouchableOpacity>
@@ -602,7 +604,7 @@ const CardBody = (props) => {
   return(
     <View style={cardBodyStyles.cardBody}>
       <View style={cardBodyStyles.cardBodyWrapper}>
-        <Text style={cardBodyStyles.cardSeparatorTitle}>Simulasi Terjadwal</Text>
+        <Text style={cardBodyStyles.cardSeparatorTitle}>Daftar Simulasi</Text>
         
         {Object.entries(simulationsData).map(([key, value]) => (
           <TouchableOpacity key={key} style={cardBodyStyles.announcementCardWrapper} onPress={() => navigateToSimulationInfo(key, value)}>
@@ -615,6 +617,21 @@ const CardBody = (props) => {
                 <Text style={{ flexGrow: 1, color: 'black' }}>{value.date_start}</Text>
               </View>
               <Text style={{ color: 'black', fontWeight: '600', textAlign: 'left', width: '100%', flexShrink: 1 }}>{value.name}</Text>
+                
+                {Object.entries(value).map(([childKey, childVal]) => {
+                  if (childKey == 'members') {
+                    if (Object.keys(childVal)[0] == props.deviceToken) {
+                      return (
+                        <React.Fragment key={childKey}>
+                          <Image source={BookmarkIcon} style={cardBodyStyles.announcementBookmark} />
+                          <Text style={cardBodyStyles.bookmarkTitle}>Terdaftar</Text>
+                          <View style={cardBodyStyles.cardSideLine} />
+                        </React.Fragment>
+                      )
+                    }
+                  }
+                })}
+
           </TouchableOpacity>
         ))}
       </View>
@@ -666,11 +683,6 @@ const CardBody = (props) => {
         <View style={cardBodyStyles.activityHistoryWrapper}>
           <ActivityHistory activityHistory={{ status: 'checkin', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }}/>
           <ActivityHistory activityHistory={{ status: 'checkout', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }} />
-          <ActivityHistory activityHistory={{ status: 'checkin', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }}/>
-          <ActivityHistory activityHistory={{ status: 'checkout', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }}/>
-          <ActivityHistory activityHistory={{ status: 'checkin', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }} />
-          <ActivityHistory activityHistory={{ status: 'checkout', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }}/>
-          <ActivityHistory activityHistory={{ status: 'checkin', location: 'PLN Kawangkoan', date: '24/04/2023', time: '08:13' }} />
         </View>
       </View> */}
 
@@ -721,7 +733,8 @@ const Footer = (props) => {
 
   const navigation = useNavigation();
   const navigateToAlarm = () => {
-    navigation.navigate('Alarm', {checkinId: checkinId, checkinKey: checkinKey, deviceToken: props.deviceToken});
+    // navigation.navigate('Alarm', {checkinId: checkinId, checkinKey: checkinKey, deviceToken: props.deviceToken});
+    navigation.navigate('Alarm', {alarmState: 'pending', checkinId: checkinId, checkinKey: checkinKey, deviceToken: props.deviceToken});
   };
 
   return (
@@ -1046,6 +1059,30 @@ const cardBodyStyles = StyleSheet.create({
     width: '100%',
     position: 'relative',
     marginBottom: 10,
+    overflow: 'hidden'
+  },
+
+  announcementBookmark: {
+    position: 'absolute',
+    top: -5,
+    right: 10,
+    width: 40,
+    height: 40,
+  },
+
+  bookmarkTitle : {
+    position: 'absolute',
+    bottom: 10,
+    right: 15
+  },
+
+  cardSideLine: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 8,
+    backgroundColor: '#C0C0C0'
   },
 
   cardSeparatorTitle: {

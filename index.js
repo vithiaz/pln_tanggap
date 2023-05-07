@@ -14,3 +14,4 @@ import { useState } from 'react';
 import { Vibration } from 'react-native';
 
 AppRegistry.registerComponent(appName, () => Route);
+AppRegistry.registerComponent('notificationAlert', () => NotificationAlert);

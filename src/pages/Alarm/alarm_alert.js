@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 
 import React, { useEffect, useState } from 'react'
+import axios from 'axios';
 
 import BackIcon from '../../assets/icon/back.png'
 import SirenIcon from '../../assets/icon/siren.png'
@@ -16,9 +17,10 @@ import AlertIcon from '../../assets/icon/alert.png'
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
 import { TextArea } from 'native-base'
 import { TextInput } from 'react-native-gesture-handler'
-import { onValue, ref, set } from 'firebase/database'
-import { db } from '../../config/firebase'
+import { child, onValue, push, ref, set } from 'firebase/database'
+import { db, messagingApiUrl, messagingServerKey } from '../../config/firebase'
 import { useFocus } from 'native-base/lib/typescript/components/primitives'
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default AlarmAlert = ({ route, navigation }) => {
   const infoMessageHeader = 'INFORMASI PENTING';
@@ -33,6 +35,7 @@ export default AlarmAlert = ({ route, navigation }) => {
   const [staffTokens, setStaffTokens] = useState([]);
   const [guestTokens, setGuestTokens] = useState([]);
   const [notifyTokens, setNotifyTokens] = useState([])
+  const [safePointId, setSafePointId] = useState(null);
 
   const handleInformationChange = (info) => {
     setInformation(info);
@@ -43,6 +46,12 @@ export default AlarmAlert = ({ route, navigation }) => {
     console.log('Locationkey ' , checkinKey)
     console.log('TOken ' , myToken)
   }, [])
+
+  const getOfficeData = () => {
+    onValue(ref(db, '/offices/' + checkinKey), (snap) => {
+      setSafePointId(snap.val().safe_point_id);
+    }, {onlyOnce: true})
+  }
 
   const getCheckinToken = () => {
     onValue(ref(db, '/checkin_data'), (snap) => {
@@ -79,42 +88,123 @@ export default AlarmAlert = ({ route, navigation }) => {
       setGuestTokens(newData)
     }, {onlyOnce: true})
   }
-  
-
-  useEffect(() => {
-    console.log('checkinToken: ', checkinTokens);
-    console.log('staffToken: ', staffTokens);
-    console.log('guestToken: ', guestTokens);
-  }, [checkinTokens, staffTokens, guestTokens])
-  
-  // useEffect(() => {
-  // }, [staffTokens])
-  // useEffect(() => {
-  // }, [guestTokens])
-  
+    
   const combineArrays = (...arrays) => {
     const combinedArray = [].concat(...arrays);
     return [...new Set(combinedArray)];
   };
 
-  const handleAlarmTriggered = () => {
-    getCheckinToken();
-    getStaffToken();
-    getGuestToken();
+  const getAllToken = () => {
+    getCheckinToken(),
+    getStaffToken(),
+    getGuestToken(),
+    getOfficeData()
+  }
 
-    const notificationTokens = combineArrays(checkinTokens, ...staffTokens, ...guestTokens);
-    console.log('Merging : ', notificationTokens);
+  useEffect(() => {
+    getAllToken();
+  }, [notifyTokens])
 
-    // Checkpoint
+  const sendPushNotification = (notificationData) => {
+    axios({
+      method: 'POST',
+      url: messagingApiUrl,
+      headers: {
+        Authorization: `key=${messagingServerKey}`,
+        'Content-Type': 'application/json',
+      },
+      data: notificationData,
+    })
+      .then(response => {
+        console.log('Notification sent:', response.data);
+      })
+      .catch(error => {
+        console.log('Error sending notification:', error);
+      });
+  };
+  
+  function getCurrentTime() {
+    const now = new Date();
+    const options = {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    };
+    return now.toLocaleString('en-US', options);
+  }
+  
+  const handleAlarmTriggered = async() => {
+    const getNotificationTokens = async() => {
+      await Promise.all([
+        getAllToken(),
+        res = combineArrays(checkinTokens, ...staffTokens, ...guestTokens)
+      ])
+      setNotifyTokens(res);
+      return res;
+    }
+    const notifyTokensResult = await getNotificationTokens();
+    // Create alarms table
+    try {
+      const alarmKey = push(child(ref(db), 'alarms')).key;
+      set(ref(db, 'alarms/' + alarmKey), {
+        alarmKey: alarmKey,
+        trigerred_token: myToken,
+        status: 'activate',
+        title: 'Alarm Darurat',
+        body: information,
+        safeKey: safePointId,
+        triggeredTime: getCurrentTime()
+      });
 
+      const notificationData = {
+        registration_ids: notifyTokensResult,
+        priority: "high",
+        notification: {
+          title: "Alarm Darurat",
+          body: information,
+          sound: "alarm",
+          android_channel_id: "default",
+          // android_channel_id: "alarm_channel",
+          userInteraction: true,
+          autoCancel: true,
+          vibrate: true,
+          vibration: 1000,
+          ongoing: true,
+          show_in_foreground: true
+          // send_at: 0, // UNIX timestamp
+        },
+        data: {
+          notificationType: 'emergency',
+          alarmKey: alarmKey,
+          trigerred_token: myToken,
+          simulation: false
+        }
+      }
+      sendPushNotification(notificationData);
+      
+      const activeAlarmData = {
+        alarmKey: alarmKey,
+        simulation: false
+      }
+      AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
+      navigation.navigate('Active', {
+        myToken: myToken,
+        alarmKey: alarmKey,
+        simulation: false
+       }, { replace: true });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Alert' }]
+      });
+    }
+    catch (e) {
+      console.log('Error while activating alarm: ', e);
+    }
 
-
-    // const attemptKey = push(child(ref(db), 'emergency_alert')).key;
-    // set(ref(db, 'emergency_alert/' + attemptKey), {
-    //   title: 'ALARM DARURAT',
-    //   message: information,
-
-    // });
   }
   
   return (

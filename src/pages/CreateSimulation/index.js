@@ -43,10 +43,21 @@ const PageContentCard = ({ navigation }) => {
         })
       }
     })
+
+    
   }, [])
+
+  const convertDBTime = (timeStrData) => {
+    console.log('timeStrData: ', timeStrData)
+    const [dateStr, time] = timeStrData.split(', ');
+    const [month, day, year] = dateStr.split('/');
+    const [hours, minutes, seconds] = time.split(':');
+    const timestamp = new Date(`${year}-${month}-${day}T${hours}:${minutes}:${seconds}`).getTime();
+    return timestamp;
+  };
     
   const handleSelect = (itemPicker) => {
-      setSelectedItem(itemPicker);
+    setSelectedItem(itemPicker);
   };
   
   const handleDateChange = (date) => {
@@ -54,7 +65,6 @@ const PageContentCard = ({ navigation }) => {
 
     }
     const handleTimeChange = (time) => {
-      // console.log(time);
       setInputTime(time);
   };
 
@@ -62,7 +72,7 @@ const PageContentCard = ({ navigation }) => {
     setInputName(text);
   }
   
-  const officeSelect = Object.entries(office).map(([key, value]) => ({ key: key, label: value.name }));
+  const officeSelect = Object.entries(office).map(([key, value]) => ({ key: key, label: value.name, safeKey: value.safe_point_id }));
   
   function format_datetime(dateString) {
     const date = new Date(dateString);
@@ -73,6 +83,25 @@ const PageContentCard = ({ navigation }) => {
     const minutes = date.getMinutes();
     return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year.toString()} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
+
+  function getCurrentTime() {
+    const now = new Date();
+    const options = {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    };
+    return now.toLocaleString('en-US', options);
+  }
+
+  const toUnixTimestamp = (dateTimeStr) => {
+    const dateTime = new Date(dateTimeStr.replace(' ', 'T')); // replace space with T for valid ISO 8601 format
+    return dateTime.getTime();
+  };
 
   const storeSimulation = () => {
     console.log('starting to validate')
@@ -86,7 +115,9 @@ const PageContentCard = ({ navigation }) => {
     const saved_date = inputDate;
     const dateTimeStr = `${saved_date}T${formattedTime}:00.000Z`;
     const save_datetime = new Date(Date.parse(dateTimeStr));
+    const sendDateUnix = Date.parse(dateTimeStr);
     const simulation_status = 'pending';
+    const dateTimeUnix = toUnixTimestamp(inputDate + ' ' + formattedTime);
 
     try {
       const attemptKey = push(child(ref(db), 'simulations')).key;
@@ -96,6 +127,8 @@ const PageContentCard = ({ navigation }) => {
         location: save_location,
         location_name: save_location_name,
         status: simulation_status,
+        safeKey: selectedItem.safeKey,
+        triggeredTime: getCurrentTime()
       });
       console.log('storing completed');
       navigation.navigate('Home');

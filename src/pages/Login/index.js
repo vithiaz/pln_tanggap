@@ -82,6 +82,7 @@ const PageContentCard = (props) => {
           <View style={contentCardStyles.formInput}>
             <Text style={contentCardStyles.formInputLabel}>Password</Text>
             <TextInput
+              secureTextEntry={true}
               style={contentCardStyles.formInputText}
               placeholder='password'
               onChangeText={(text) => setPassword(text)}
@@ -212,6 +213,7 @@ const contentCardStyles = StyleSheet.create({
     flexDirection: 'column',
     gap: 8,
     paddingVertical: 8,
+    position: 'relative'
   },
   formInputLabel: {
     color: 'black',
@@ -221,6 +223,13 @@ const contentCardStyles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     paddingHorizontal: 10,
+  },
+  formIcon: {
+    position: 'absolute',
+    bottom: '20',
+    left: 20,
+    width: 20,
+    height: 20
   },
 
   LoginButton: {

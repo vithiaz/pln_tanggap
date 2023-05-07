@@ -30,58 +30,139 @@ import SimulationInfo from './src/pages/SimulationInfo/index.js';
 emergencyNotificationChannel();
 messaging().requestPermission();
 
-AppRegistry.registerComponent('notificationAlert', () => NotificationAlert);
+RNNotificationCall.addEventListener('answer', (data) => {
+  const { callUUID, payloadJSON } = data;
+  const payload = JSON.parse(data.payload);
 
-// Notification handler
+  console.log('payload data', payload);
+  console.log('Listen payload', payload.alarmKey);
+  console.log('simulation payload', payload.simulation);
+  const activeAlarmData = {
+      alarmKey: payload.alarmKey,
+      simulation: payload.simulation
+    }
+  AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
+  RNNotificationCall.backToApp();
+  // console.log('press answer', callUUID);
+  // props.setActiveAlarm(payload.alarmKey);
+  // navigation.navigate('Alarm', {alarmState: 'incoming', alarmKey: payload.alarmKey});
+});
+
 messaging().setBackgroundMessageHandler(async remoteMessage => {
-    console.log('Message handled in the background!', remoteMessage);
-
+  console.log('Message handled in the background!', remoteMessage);
+  if (remoteMessage.data.notificationType == 'emergency') {
     RNNotificationCall.displayNotification(
-      '22221a97-8eb4-4ac2-b2cf-0a3c0b9100ad',
+      remoteMessage.messageId,
       null,
-      30000,
+      180000,
       {
-        // channelId: 'com.abc.incomingcall',
         channelId: 'alert-channel',
         channelName: 'Alert Channel',
         notificationIcon: 'ic_launcher', //mipmap
-        notificationTitle: 'KEADAAN DARURAT!!!',
-        notificationBody: 'Lakukan protokol evakuasi',
-        answerText: 'Konfirmasi',
+        notificationTitle: remoteMessage.notification.title,
+        notificationBody: remoteMessage.notification.body,
+        answerText: 'Lihat',
         declineText: 'Abaikan',
         notificationColor: 'colorAccent',
-        // notificationColor: 'red',
         notificationSound: null, //raw
-        // mainComponent:'notificationAlert',//AppRegistry.registerComponent('MyReactNativeApp', () => CustomIncomingCall);
-        // payload:{name:'Test',Body:'test'}
+        payload: remoteMessage.data
+        // notificationColor: 'red',
+        // mainComponent:'PlnTanggap',//AppRegistry.registerComponent('MyReactNativeApp', () => CustomIncomingCall);
       }
     );
-    
+    const activeAlarmData = {
+      alarmKey: remoteMessage.data.alarmKey,
+      simulation: remoteMessage.data.simulation
+    }
+    AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
+  }
 
-    // const durationMs = 2 * 1000; // 120 seconds = 120,000 milliseconds
-    // Vibration.vibrate(durationMs);
+})
 
-});
+// Notification handler 
 
-messaging().onNotificationOpenedApp((remoteMessage) => {
-    // const durationMs = 2 * 1000; // 120 seconds = 120,000 milliseconds
-    // Vibration.vibrate(durationMs);
-
-    // Handle the notification as desired
-    console.log('Notification opened in foreground:', remoteMessage.notification);
-  });
-
-RNNotificationCall.addEventListener('answer', (data) => {
-  RNNotificationCall.backToApp();
-  const { callUUID, payload } = data;
-  console.log('press answer', callUUID);
-  console.log('payload data', payload);
-});
-  
 
 const Stack = createStackNavigator();
 
-const HomeStack = () => {
+const HomeStack = (props) => {
+    const navigation = useNavigation();
+    const [activeAlarm, setActiveAlarm] = useState(false);
+    // const [isSimulation, setIsSimulation] = useState(false);
+    const [deviceToken, setDeviceToken] = useState('');
+    const getDeviceToken = async() => {
+      try {
+        const value = await AsyncStorage.getItem('@device_token')
+        setDeviceToken(JSON.parse(value))
+      } catch(e) {
+        console.log(e);
+      }
+    }
+
+    const handleActiveAlarm = async () => {
+      try {
+        const saveAlarmData = await AsyncStorage.getItem('@activeAlarm');
+        if (saveAlarmData) {
+          const alarmKey = JSON.parse(saveAlarmData).alarmKey;
+          const isSimulation = JSON.parse(saveAlarmData).simulation
+          setActiveAlarm(alarmKey)
+          navigation.navigate('Alarm', {
+            alarmState: 'incoming',
+            alarmKey: alarmKey,
+            deviceToken: deviceToken,
+            simulation: isSimulation
+          });
+        }
+      } catch(e) {
+        console.log(e);
+      }
+    }
+    useEffect(() => {
+      handleActiveAlarm();
+    }, [])
+
+    // Handle notification when app is running foreground
+    useEffect(() => {
+      const unsubscribe = messaging().onMessage(async remoteMessage => {
+        console.log('FCM Arrived!');
+        if (remoteMessage.data.notificationType == 'emergency') {
+          const alarmKey = remoteMessage.data.alarmKey;
+          const simulation = remoteMessage.data.simulation;
+          const activeAlarmData = {
+            alarmKey: alarmKey,
+            simulation: simulation
+          }
+          AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
+          navigation.navigate('Alarm', {
+            alarmState: 'incoming',
+            alarmKey: alarmKey,
+            deviceToken: deviceToken,
+            simulation: simulation
+          });
+        }
+        
+        });
+      return unsubscribe;
+    }, []);
+
+    useEffect(() => {
+      const unsubs = messaging().onNotificationOpenedApp((remoteMessage) => {
+        if (remoteMessage.data.notificationType == 'emergency') {
+          const alarmKey = remoteMessage.data.alarmKey;
+          props.setActiveAlarm(alarmKey);
+          navigation.navigate('Alarm', {
+            alarmState: 'incoming',
+            alarmKey: value,
+            alarmState: 'incoming',
+            deviceToken: deviceToken,
+            simulation: remoteMessage.data.simulation
+          });
+        }
+      });
+      return unsubs;
+    }, [])
+
+
+
   return (
     <Stack.Navigator 
       screenOptions={{
@@ -115,7 +196,15 @@ const HomeStack = () => {
 
 export const TokenContext = createContext();
 
+
 const App = () => {
+  // useEffect(() => {
+  //    // const durationMs = 2 * 1000; // 120 seconds = 120,000 milliseconds
+  //     // Vibration.vibrate(durationMs);
+  //   });
+
+  //   return unsubscribe;
+  // }, []);
 
   // Use this for update the device token value in token context provider
   const [deviceToken, setDeviceToken] = useState('');
@@ -143,6 +232,7 @@ const App = () => {
     // <TokenContext.Provider value={{ deviceToken, setDeviceToken }}>
       <AuthUserProvider>
         <NavigationContainer >
+        {/* <Text>{activeAlarm}</Text> */}
             <HomeStack />
         </NavigationContainer>
       </AuthUserProvider>
