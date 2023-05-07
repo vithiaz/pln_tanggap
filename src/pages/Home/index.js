@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Modal,
   Text,
   Button,
   TouchableNativeFeedbackComponent,
@@ -52,7 +53,6 @@ import { Linking } from 'react-native';
 import { Vibration } from 'react-native';
 import { TokenContext } from '../../../route';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Modal } from 'native-base';
 import CheckinLocationPicker from '../../components/checkinLocationPicker';
 import { addDoc, updateDoc } from 'firebase/firestore';
 import { convertAbsoluteToRem } from 'native-base/lib/typescript/theme/tools';
@@ -101,6 +101,7 @@ const Home = ({ navigation }) => {
   const [checkinLocation, setCheckinLocation] = useState(null);
   const [checkinKey, setCheckinKey] = useState(false);
   const [checkinId, setCheckinId] = useState(false);
+  // const [modalShow, setModalShow] = useState(false)
 
   // Handling Token
   const [deviceToken, setDeviceToken] = useState('');
@@ -159,6 +160,17 @@ const Home = ({ navigation }) => {
     }
   }
 
+  // Listening if user has checked in
+  useEffect(() => {
+    if (isCheckin == true) {
+      const safetyInductionRedirect = () => {
+        navigation.navigate('SafetyInduction');
+      }
+      
+      setTimeout(safetyInductionRedirect, 1000);
+    }
+  }, [isCheckin])
+
   // Handling User login credential
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth,
@@ -187,6 +199,10 @@ const Home = ({ navigation }) => {
         userType={userType}
         userProfile={false}
       />
+      
+      {/* <SafetyInstructionModal
+      modalShow={modalShow}
+      /> */}
       <ScrollView endFillColor={ '#F4F7FF' }>
         <CheckoutInfo
           user={user}
@@ -224,6 +240,28 @@ const Home = ({ navigation }) => {
 }
 
 export default Home;
+
+// const SafetyInstructionModal = (props) => {
+  
+//   return (
+//     <Modal 
+//           visible={props.modalShow}
+//           transparent={true}
+//           animationType={'fade'}
+//         >
+//           <View style={styles.modalContainer}>
+//             <View style={styles.modelHeader}>
+//               <TouchableOpacity>
+//                 <Text>Kembali</Text>
+//               </TouchableOpacity>
+//             </View>
+//             <View style={styles.modalBody}>
+//               <Text>Modal Body Heres</Text>
+//             </View>
+//           </View>
+//         </Modal>
+//   )
+// }
 
 const Navbar = (props) => {
   const navigation = useNavigation();
@@ -326,29 +364,13 @@ const Navbar = (props) => {
 }
 
 const CheckoutInfo = (props) => {
-  // Get device token
-  // const [deviceToken, setDeviceToken] = useState('');
+  const [checkinDataInfo, setCheckinData] = useState(false);
+  const [office, setOffice] = useState([]);
   
-  // const getDeviceToken = async() => {
-  //   try {
-  //     const value = await AsyncStorage.getItem('@device_token')
-  //     setDeviceToken(JSON.parse(value))
-  //   } catch(e) {
-  //     console.log(e);
-  //   }
-  // }
-  // getDeviceToken();
-
   useEffect(() => {
     console.log('tracking ...: ', props.checkinKey);
   }, [props.checkinKey]);
-
-
-  // const [isCheckin, setIsCheckin] = useState(false);
-  const [checkinDataInfo, setCheckinData] = useState(false);
-
-  const [office, setOffice] = useState([]);
-
+  
   useEffect( () => {     
     onValue(ref(db, '/offices/'), (snap) => {
       setOffice([])
@@ -379,7 +401,7 @@ const CheckoutInfo = (props) => {
 
   // Handle Checkin
   const handleSelectedLocation = (checkinLocation) =>
-  {   
+  {
     // Create CheckinData Table if Logged id
     if (auth.currentUser != null) {
       const attemptKey = push(child(ref(db), 'checkin_data')).key;
@@ -1193,5 +1215,3 @@ const footerStyles = StyleSheet.create({
     height: '80%',
   }
 })
-
-
