@@ -7,7 +7,8 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Image,
-  LogBox
+  LogBox,
+  Vibration
 } from 'react-native'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigation } from '@react-navigation/native';
@@ -52,7 +53,9 @@ export default function AlarmActive({ route, navigation }) {
   const [intervalId, setIntervalId] = useState(null);
   const [timeCount, setTimeCount] = useState('00:00:00');
   const [checkinName, setCheckinName] = useState('');
-  const [alarmMembers, setAlarmMembers] = useState([])
+  const [alarmMembers, setAlarmMembers] = useState([]);
+  const [stopVibration, setStopVibration] = useState(false);
+  const pattern = [100, 2000];
 
   const [memberGroup, setMemberGroup] = useState('');
 
@@ -74,6 +77,30 @@ export default function AlarmActive({ route, navigation }) {
   useEffect(() => {
     getIsCheckin();
   }, []);
+
+
+
+  // Handle Vibration
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // Check the condition to stop the vibration
+      if (stopVibration) {
+        // Stop the vibration loop
+        clearInterval(intervalId);
+      } else {
+        // Vibrate with the specified pattern
+        Vibration.vibrate(pattern);
+      }
+    }, pattern.reduce((a, b) => a + b)); // Calculate the total duration of the pattern
+
+    // Clean up the interval on unmount
+    return () => clearInterval(intervalId);
+  }, [stopVibration]);
+
+  // Function to stop the vibration loop
+  const stopVibrationLoop = () => {
+    setStopVibration(true);
+  };
 
 
   function getCurrentTime() {
@@ -183,8 +210,14 @@ export default function AlarmActive({ route, navigation }) {
   // }, [isCount, alarmData]);  
 
   // Handle QR Scanning
+  const handleOpenScan = () => {
+    setScanned(true);
+    stopVibrationLoop();
+  }
+
   const handleScan = (e) => {
     console.log('Scanned data: ', e.data);
+    
     // Handle if Simulation
     if (simulation == true) {
       if (e.data == alarmData.safeKey) {
@@ -524,6 +557,8 @@ export default function AlarmActive({ route, navigation }) {
   const releaseSound = () => {
     console.log('Sound Released');
     sound.release();
+
+    stopVibrationLoop();
   }
 
   // useEffect(() => {
@@ -642,7 +677,7 @@ export default function AlarmActive({ route, navigation }) {
                     <Text style={styles.footerButtonText}>Kembali</Text>
                   </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={styles.footerButton} onPress={() => setScanned(true)}>
+                <TouchableOpacity style={styles.footerButton} onPress={handleOpenScan}>
                   <Text style={styles.footerButtonText}>Saya sudah di titik evakuasi</Text>
                 </TouchableOpacity>
               )}
