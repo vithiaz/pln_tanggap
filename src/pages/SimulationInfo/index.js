@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Animated, Dimensions } from 'react-native'
 import axios from 'axios';
 
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
@@ -10,13 +10,60 @@ import { push, child, ref, set, update, onValue } from 'firebase/database';
 import { db, messagingApiUrl, messagingServerKey } from '../../config/firebase';
 import { TouchEventType } from 'react-native-gesture-handler/lib/typescript/TouchEventType';
 
+import CheckInOutIcon from '../../assets/icon/check_in_out.png';
+import SecurityIcon from '../../assets/icon/guard.png';
+import PemadamIcon from '../../assets/icon/fireman.png';
+import EvakuasiIcon from '../../assets/icon/evacuator.png';
+import DokumenIcon from '../../assets/icon/document_guard.png';
+import MedicIcon from '../../assets/icon/medic.png';
+import GuestIcon from '../../assets/icon/guest.png';
+import Loader from '../../components/loader';
+
 export default SimulationInfo = ({route, navigation}) => {
     const simulationId = route.params.simulationId;
     const simulationData = route.params.data;
+    const checkinName = route.params.checkinName;
     const userInfo = route.params.userInfo;
     const [isRegister, setIsRegister] = useState(false);
     const [isHost, setIsHost] = useState(false)
     const [notificationIds, setNotificationIds] = useState([]);
+
+    const [showForm, setShowForm] = useState(false);
+    const [nameInput, setNameInput] = useState('');
+    const [teamInput, setTeamInput] = useState('guest');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const formAnimatedHeight = new Animated.Value(0);
+    const heightPercentage = formAnimatedHeight.interpolate({
+      inputRange: [0, 100],
+      outputRange: ['0%', '100%'],
+      extrapolate: 'clamp',
+    });
+
+    // Handle Select Team
+    const handleSelectedTeam = (teamKey) => {
+      setTeamInput(teamKey);
+    }
+  
+    // Handle Toggle Form
+    const toggleForm = async () => {
+      setShowForm(!showForm);
+    }
+    useEffect(() => {
+      if (showForm) {
+         Animated.timing(formAnimatedHeight, {
+            toValue: 100,
+            duration: 200,
+            useNativeDriver: false,
+          }).start();
+        } else {
+        Animated.timing(formAnimatedHeight, {
+           toValue: 0,
+           duration: 200,
+           useNativeDriver: false,
+         }).start();
+      }
+    }, [showForm]);
 
     // Get device token
     const [deviceToken, setDeviceToken] = useState('');
@@ -32,6 +79,7 @@ export default SimulationInfo = ({route, navigation}) => {
     // Handle if user already register based on device token
     useEffect(() => {
         getDeviceToken();
+        console.log('\ncheckinName :\n', checkinName, '\n\n')
         if (simulationData.hasOwnProperty('members')) {
             Object.entries(simulationData.members).map(([token, data]) => {
                 if (data.device_token == deviceToken) {
@@ -52,17 +100,30 @@ export default SimulationInfo = ({route, navigation}) => {
 
     // Register Simulation
     const handleRegisterSimulation = () => {
-        try {
-            set(ref(db, 'simulations/' + simulationId + '/members/' + deviceToken), {
-                device_token: deviceToken,
-                secure_state: false,
-            });
-            setIsRegister(true)
-            console.log('Simulation registration success');
-        } catch (e) {
-            console.log('Error: ', e);
+      try {
+        if (checkinName) {
+          set(ref(db, 'simulations/' + simulationId + '/members/' + deviceToken), {
+              device_token: deviceToken,
+              checkin_name: checkinName,
+              group: teamInput,
+              secure_state: false,
+          });
+        } else {
+          set(ref(db, 'simulations/' + simulationId + '/members/' + deviceToken), {
+              device_token: deviceToken,
+              checkin_name: nameInput,
+              group: teamInput,
+              secure_state: false,
+          });
         }
+          setIsRegister(true)
+          console.log('Simulation registration success');
+          toggleForm();
+      } catch (e) {
+          console.log('Error: ', e);
+      }
     }
+    
     // Cancel Register Simulation
     const handleCancelRegisterSimulation = () => {
         try {
@@ -142,9 +203,37 @@ export default SimulationInfo = ({route, navigation}) => {
           // trigerred_token: deviceToken,
         }
       }
-      console.log(notificationData)
-      sendPushNotification(notificationData);
-      navigation.pop();
+
+      const notificationAwaker = {
+        registration_ids: notificationIds,
+        priority: "high",
+        notification: {
+          title: "",
+          body: "",
+          sound: "",
+          android_channel_id: "default",
+          // android_channel_id: "alarm_channel",
+        },
+        data: {
+          notificationType: 'awaker',
+        }
+      }
+      const sendAwaker = () => {
+        console.log('sending awaker...');
+        setIsLoading(true)
+        sendPushNotification(notificationAwaker);
+      }
+      sendAwaker();
+
+      setTimeout(() => {
+        console.log('sending notification...');
+        sendPushNotification(notificationData);
+        setIsLoading(false)
+
+        navigation.pop();
+      }, 7000)
+
+
     }
 
     // Getting simulations members to notify
@@ -165,6 +254,8 @@ export default SimulationInfo = ({route, navigation}) => {
     }, [])
 
     return (
+      <>
+        {isLoading ? (<Loader/>) : null}
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
             <SafeAreaView style={{ height: '100%', }}>
             <View style={styles.container}>
@@ -203,19 +294,95 @@ export default SimulationInfo = ({route, navigation}) => {
                     
                     {/* Buttons */}
                     <View style={contentCardStyles.buttonWrapper}>
-                        {(isRegister == false) ? (
-                            <TouchableOpacity style={contentCardStyles.AbortButton} onPress={handleRegisterSimulation}>
-                                <Text style={contentCardStyles.AbortButtonText}>Ikuti Simulasi</Text>
-                            </TouchableOpacity>
-                        ) : (
-                            <>
-                                <Text>Anda telah terdaftar untuk simulasi ini</Text>
-                                <TouchableOpacity style={contentCardStyles.AbortButton} onPress={handleCancelRegisterSimulation}>
-                                    <Text style={contentCardStyles.AbortButtonText}>Batalkan Pendaftaran</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-                        {isHost && (
+                      {isHost ? (
+                        <>
+                          <TouchableOpacity style={contentCardStyles.DangerButton} onPress={handleCancelSimulation}>
+                              <Text style={contentCardStyles.DangerButtonText}>BATALKAN SIMULASI</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={handleStartSimulation}>
+                              <Text style={contentCardStyles.SubmitButtonText}>MULAI SIMULASI</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <>
+                          {(isRegister == false) ? (
+                              <>
+                                <Animated.View
+                                    style={{ 
+                                      flexDirection: 'column',
+                                      gap: 10,
+                                      width: '100%',
+                                      maxHeight: heightPercentage,
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    <View style={{ 
+                                      flexDirection: 'row',
+                                      gap: 10,
+                                      flexWrap: 'wrap',
+                                    }}>
+                                      <Text>Pilihan regu</Text>
+                                      {Object.entries({
+                                        'guest': ['Karyawan / Tamu', GuestIcon],
+                                        'security': ['Regu Pengamanan Area', SecurityIcon],
+                                        'pemadam': ['Regu Pemadam Kebakaran', PemadamIcon],
+                                        'evakuasi': ['Regu Evakuasi', EvakuasiIcon],
+                                        'dokumen': ['Regu Penyelaman Dokumen', DokumenIcon],
+                                        'p3k': ['Regu P3K', MedicIcon],
+                                      }).map(([key, value]) => (
+                                        <TouchableOpacity
+                                          key={key}
+                                          style={(key == teamInput) ? contentCardStyles.simulationRoleCardSelected : contentCardStyles.simulationRoleCard}
+                                          onPress={() => handleSelectedTeam(key)}
+                                        >
+                                          <Image source={value[1]} style={contentCardStyles.simulationRoleCardIcon}/>
+                                          <Text style={contentCardStyles.simulationRoleCardLabel}>{value[0]}</Text>
+                                        </TouchableOpacity>
+                                      ))}
+                                    </View>
+                                    {(checkinName === false) ? (
+                                      <View style={{
+                                        flexDirection: 'row',
+                                        gap: 10,
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        backgroundColor: 'white',
+                                        paddingHorizontal: 10,
+                                        borderRadius: 12
+                                      }}>
+                                        <TextInput
+                                          style={contentCardStyles.formInputText}
+                                          placeholder='Nama Lengkap...'
+                                          onChangeText={(text) => setNameInput(text)}
+                                        ></TextInput>
+                                        <TouchableOpacity style={contentCardStyles.formBtn} onPress={handleRegisterSimulation}>
+                                            <Image source={CheckInOutIcon} style={contentCardStyles.formBtnIcon} />
+                                        </TouchableOpacity>
+                                      </View>
+                                    ) : '' }
+                                </Animated.View>
+                                {showForm ? (
+                                  <TouchableOpacity style={contentCardStyles.AbortButton} onPress={handleRegisterSimulation}>
+                                      <Text style={contentCardStyles.AbortButtonText}>Ikuti Simulasi</Text>
+                                  </TouchableOpacity>
+                                ) : (
+                                  <TouchableOpacity style={contentCardStyles.AbortButton} onPress={toggleForm}>
+                                      <Text style={contentCardStyles.AbortButtonText}>Ikuti Simulasi</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </>
+                          ) : (
+                              <>
+                                  <Text>Anda telah terdaftar untuk simulasi ini</Text>
+                                  <TouchableOpacity style={contentCardStyles.AbortButton} onPress={handleCancelRegisterSimulation}>
+                                      <Text style={contentCardStyles.AbortButtonText}>Batalkan Pendaftaran</Text>
+                                  </TouchableOpacity>
+                              </>
+                          )}
+                        </>
+                      )}
+                          
+                        {/* {isHost && (
                             <>
                                 <TouchableOpacity style={contentCardStyles.DangerButton} onPress={handleCancelSimulation}>
                                     <Text style={contentCardStyles.DangerButtonText}>BATALKAN SIMULASI</Text>
@@ -224,7 +391,7 @@ export default SimulationInfo = ({route, navigation}) => {
                                     <Text style={contentCardStyles.SubmitButtonText}>MULAI SIMULASI</Text>
                                 </TouchableOpacity>
                             </>
-                        )}
+                        )} */}
                     </View>
                 </View>
                 {/* Card Footer */}
@@ -240,6 +407,7 @@ export default SimulationInfo = ({route, navigation}) => {
 
             </SafeAreaView>
         </ScrollView>
+      </>
     )
 }
 
@@ -453,5 +621,58 @@ const contentCardStyles = StyleSheet.create({
     footerLogoText: {
       fontWeight: '600',
       letterSpacing: 4,
+    },
+    formInputText: {
+      flexGrow: 1,
+    },
+    formBtn: {
+      width: 42,
+      height: 42,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFF200',
+      borderRadius: 21
+    },
+    formBtnIcon: {
+      width: 20,
+      height: 20,
+    },
+
+    simulationRoleCard: {
+      paddingVertical: 12,
+      paddingLeft: 12,
+      paddingRight: 20,
+      flexBasis: 280,
+      flexGrow: 1,
+      borderRadius: 12,
+      backgroundColor: 'white',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    simulationRoleCardSelected: {
+      paddingVertical: 12,
+      paddingLeft: 12,
+      paddingRight: 20,
+      flexBasis: 280,
+      flexGrow: 1,
+      borderRadius: 12,
+      backgroundColor: '#FFF200',
+      // borderColor: '#222F34',
+      // borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    simulationRoleCardLabel: {
+      fontWeight: '600',
+      color: '#222F34'
+    },
+    simulationRoleCardIcon: {
+      width: 25,
+      height: 25,
     }
+
+    
 })

@@ -12,8 +12,8 @@ export const emergencyNotificationChannel = () => {
         soundName: 'alarm.wav',
         importance: 4,
         notificationTimeout: 120,
-        // vibration: true,
-        // vibrationPattern: [1000, 500, 1000, 500, 1000] 
+        vibration: true,
+        vibrationPattern: [1000, 500, 1000, 500, 1000] 
     },
     () => {},
   );

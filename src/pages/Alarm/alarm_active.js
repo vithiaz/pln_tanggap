@@ -25,14 +25,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { child, onValue, push, ref, set, update } from 'firebase/database'
 import { db } from '../../config/firebase'
 import { useFocus } from 'native-base/lib/typescript/components/primitives';
+import { useSafeArea } from 'native-base';
 
 const alarmSound = require("../../assets/sound/alarm.wav")
 
 LogBox.ignoreAllLogs();
 
 export default function AlarmActive({ route, navigation }) {
-  const infoMessage = 'Lakukan protokol evakuasi dan secepatnya ke titik kumpul evakuasi.';
+  const [infoMessage, setInfoMessage] = useState('');
+  // const [infoMessage, setInfoMessage] = useState('Lakukan protokol evakuasi dan secepatnya ke titik kumpul evakuasi.');
   const [infoMessageHeader, setInfoMessageHeader] = useState('KEADAAN DARURAT!!!');
+  
+  const [dataMembers, setDataMembers] = useState([]);
+  const [membersGroup, setMembersGroup] = useState('');
+  
   const alarmId = route.params.alarmKey;
   const simulation = JSON.parse(route.params.simulation);
   const [alarmData, setAlarmData] = useState([]);
@@ -45,6 +51,29 @@ export default function AlarmActive({ route, navigation }) {
   const [count, setCount] = useState(true);
   const [intervalId, setIntervalId] = useState(null);
   const [timeCount, setTimeCount] = useState('00:00:00');
+  const [checkinName, setCheckinName] = useState('');
+  const [alarmMembers, setAlarmMembers] = useState([])
+
+  const [memberGroup, setMemberGroup] = useState('');
+
+  const appendAlarmMember = (newData) => {
+    setAlarmMembers((prevData) => [...prevData, newData]);
+  }
+
+  const getIsCheckin = async () => {
+    try {
+      const value = JSON.parse(await AsyncStorage.getItem('@isCheckin'))
+      if (value) {
+        setCheckinName(value.checkinName);
+      }
+    } catch(e) {
+      console.log(e);
+    }
+  }
+
+  useEffect(() => {
+    getIsCheckin();
+  }, []);
 
 
   function getCurrentTime() {
@@ -156,30 +185,36 @@ export default function AlarmActive({ route, navigation }) {
   // Handle QR Scanning
   const handleScan = (e) => {
     console.log('Scanned data: ', e.data);
+    // Handle if Simulation
     if (simulation == true) {
       if (e.data == alarmData.safeKey) {
         stopCountdown();
         const simulationRef = ref(db, 'simulations/' + alarmId + '/members/' + myToken);
         try {
-          set(simulationRef, {
+          update(simulationRef, {
             device_token: myToken,
             secure_state: true,
             secure_time: getCurrentTime()
           });
   
           AsyncStorage.removeItem('@activeAlarm');
-          // navigation.navigate('Ended', {alarmTime: timeCount}, { replace: true });
           navigation.replace('Ended', { alarmTime: timeCount });
-
           navigation.reset({
             index: 0,
-            routes: [{ name: 'Ended' }]
+            routes: [{
+              name: 'Ended',
+              params: {
+                alarmId : alarmId,
+                simulation: simulation,
+              }
+            }]
           });
         } catch (e) {
           console.log("Error while updating the simulations database: ", e);
         }
       } 
-    } else {
+    }
+    else {  // Handle if real emergency
       if (e.data == alarmData.safeKey) {
         stopCountdown();
         const alarmRef = ref(db, 'alarms/' + alarmId + '/members/' + myToken);
@@ -187,17 +222,21 @@ export default function AlarmActive({ route, navigation }) {
           set(alarmRef, {
             device_token: myToken,
             secure_state: true,
-            secure_time: getCurrentTime()
+            secure_time: getCurrentTime(),
+            checkin_name: checkinName
           });
 
           AsyncStorage.removeItem('@activeAlarm');
-          // navigation.navigate('Ended', {alarmTime: timeCount}, { replace: true });
-          // navigation.navigate('Ended', { alarmTime: timeCount, replace: true });
           navigation.replace('Ended', { alarmTime: timeCount });
-
           navigation.reset({
             index: 0,
-            routes: [{ name: 'Ended' }]
+            routes: [{
+              name: 'Ended',
+              params: {
+                alarmId : alarmId,
+                simulation: simulation,
+              }
+            }]
           });
         } catch (e) {
           console.log("Error while updating the alarms database: ", e);
@@ -248,15 +287,22 @@ export default function AlarmActive({ route, navigation }) {
             setAlarmData(data);
             setInfoMessageHeader(data.name)
             if (data.status == 'ended') {
-              // navigation.navigate('Ended', {alarmTime: timeCount}, { replace: true });
-              // navigation.navigate('Ended', { alarmTime: timeCount, replace: true });
               navigation.replace('Ended', { alarmTime: timeCount });
-
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Ended' }]
+                routes: [{
+                  name: 'Ended',
+                  params: {
+                    alarmId : alarmId,
+                    simulation: simulation,
+                  }
+                }]
               });
               AsyncStorage.removeItem('@activeAlarm');
+            }
+
+            if (data.members) {
+              setDataMembers(data.members);
             }
           } else {
             AsyncStorage.removeItem('@activeAlarm');
@@ -270,13 +316,18 @@ export default function AlarmActive({ route, navigation }) {
           if (data !== null) {
             setAlarmData(data);
             setInfoMessageHeader(data.title)
+            
             if (data.status == 'ended') {
               navigation.navigate('Ended', {alarmTime: timeCount}, { replace: true });
-              // navigation.navigate('Ended', { alarmTime: timeCount, replace: true });
-              // navigation.replace('Ended', { alarmTime: timeCount });
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Ended' }]
+                routes: [{
+                  name: 'Ended',
+                  params: {
+                    alarmId : alarmId,
+                    simulation: simulation,
+                  }
+                }]
               });
               AsyncStorage.removeItem('@activeAlarm');
             }
@@ -290,6 +341,144 @@ export default function AlarmActive({ route, navigation }) {
       console.log('Error : ', e);
     }
   }, [])
+
+  useEffect(() => {
+    if (dataMembers) {
+      if (dataMembers[myToken])
+        if (dataMembers[myToken]['group']) {
+          setMembersGroup(dataMembers[myToken]['group']);
+        }
+    } 
+  }, [dataMembers])
+
+  // Handle Members Group
+  useEffect(() => {
+    console.log('membersGroup: ', membersGroup);
+        if (membersGroup === 'security') {
+          setInfoMessage('Lakukan pengamanan area, arahkan seluruh pegawai untuk mengevakuasi diri melewati jalur evakuasi yang sudah disediakan. Pastikan seluruh penghuni ruangan gedung dalam keadaan aman')
+        } else if (membersGroup === 'pemadam') {
+          setInfoMessage('Cari titik api kemudian lakukan pemadaman jika api masih mungkin untuk dipadamkan menggunakan APAR. Jika api sudah terlalu besar maka hubungi pemadam kebakaran')
+        } else if (membersGroup === 'evakuasi') {
+          setInfoMessage('Carilah korban cidera atau tertinggal dan lakukan evakuasi korban cidera atau tertinggal')
+        } else if (membersGroup === 'dokumen') {
+          setInfoMessage('Selamatkan dokumen penting dan aset - aset perusahaan yang penting')
+        } else if (membersGroup === 'p3k') {
+          setInfoMessage('Ambil P3K kemudian lakukan pertolongan pertama pada korban kecelakaan yang sudah dievakuasi oleh tim evakuasi')
+        } else {
+          setInfoMessage('Lakukan protokol evakuasi dan secepatnya ke titik kumpul evakuasi.')
+        }
+  }, [membersGroup])
+
+  // const getMemberGroup = async() => {
+  //   await onValue(ref(db, '/simulations/' + alarmId + '/members/' + myToken + '/'), (snap) => {
+  //     if (snap.val()) 
+  //     {
+  //       // const group = snap.val().group;
+  //       if (snap.val().group == 'security') {
+  //         console.log('ITS TRUEEE');
+  //         const msgTxt = 'Lakukan pengamanan area, arahkan seluruh pegawai untuk mengevakuasi diri melewati jalur evakuasi yang sudah disediakan. Pastikan seluruh penghuni ruangan gedung dalam keadaan aman';
+  //       }
+  //       else if (snap.val().group == 'pemadam') {
+  //         const msgTxt = 'Cari titik api kemudian lakukan pemadaman jika api masih mungkin untuk di padamkan menggunakan APAR. Jika api sudah terlalu besar maka hubungi pemadam kebakaran';
+  //       }
+  //       else if (snap.val().group == 'evakuasi') {
+  //         const msgTxt = 'Carilah korban cidera atau tertinggal dan lakukan evakuasi korban cidera atau tertinggal';
+  //       }
+  //       else if (snap.val().group == 'dokumen') {
+  //         const msgTxt = 'Selamatkan dokumen penting dan aset - aset perusahaan yang penting';
+  //       }
+  //       else if (snap.val().group == 'p3k') {
+  //         const msgTxt = 'Ambil P3K kemudian lakukan pertolongan pertama pada korban kecelakaan yang sudah di evakuasi oleh tim evakuasi';
+  //       }
+  //       else {
+  //         const msgTxt = 'Lakukan protokol evakuasi dan secepatnya ke titik kumpul evakuasi.';
+  //       }
+  //     }
+  //   }, { onlyOnce: true })
+  //   return msgTxt;
+  // }
+
+  // const getMemberGroup = async () => {
+  //   let msgTxt = '';
+  
+  //   await onValue(ref(db, '/simulations/' + alarmId + '/members/' + myToken + '/'), (snap) => {
+  //     if (snap.val()) {
+  //       if (snap.val().group === 'security') {
+  //         console.log('ITS TRUEEE');
+  //         msgTxt = 'Lakukan pengamanan area, arahkan seluruh pegawai untuk mengevakuasi diri melewati jalur evakuasi yang sudah disediakan. Pastikan seluruh penghuni ruangan gedung dalam keadaan aman';
+  //       } else if (snap.val().group === 'pemadam') {
+  //         msgTxt = 'Cari titik api kemudian lakukan pemadaman jika api masih mungkin untuk dipadamkan menggunakan APAR. Jika api sudah terlalu besar maka hubungi pemadam kebakaran';
+  //       } else if (snap.val().group === 'evakuasi') {
+  //         msgTxt = 'Carilah korban cidera atau tertinggal dan lakukan evakuasi korban cidera atau tertinggal';
+  //       } else if (snap.val().group === 'dokumen') {
+  //         msgTxt = 'Selamatkan dokumen penting dan aset - aset perusahaan yang penting';
+  //       } else if (snap.val().group === 'p3k') {
+  //         msgTxt = 'Ambil P3K kemudian lakukan pertolongan pertama pada korban kecelakaan yang sudah dievakuasi oleh tim evakuasi';
+  //       } else {
+  //         msgTxt = 'Lakukan protokol evakuasi dan secepatnya ke titik kumpul evakuasi.';
+  //       }
+  //     }
+  //   }, { onlyOnce: true });
+  
+  //   return msgTxt;
+  // };
+
+  // const getMemberGroup = async () => {
+  //   let msgTxt = '';
+  //   const snap = await get(ref(db, '/simulations/' + alarmId + '/members/' + myToken + '/'));
+  //   if (snap.val()) {
+  //     if (snap.val().group === 'security') {
+  //       msgTxt = 'Lakukan pengamanan area, arahkan seluruh pegawai untuk mengevakuasi diri melewati jalur evakuasi yang sudah disediakan. Pastikan seluruh penghuni ruangan gedung dalam keadaan aman';
+  //     } else if (snap.val().group === 'pemadam') {
+  //       msgTxt = 'Cari titik api kemudian lakukan pemadaman jika api masih mungkin untuk dipadamkan menggunakan APAR. Jika api sudah terlalu besar maka hubungi pemadam kebakaran';
+  //     } else if (snap.val().group === 'evakuasi') {
+  //       msgTxt = 'Carilah korban cidera atau tertinggal dan lakukan evakuasi korban cidera atau tertinggal';
+  //     } else if (snap.val().group === 'dokumen') {
+  //       msgTxt = 'Selamatkan dokumen penting dan aset - aset perusahaan yang penting';
+  //     } else if (snap.val().group === 'p3k') {
+  //       msgTxt = 'Ambil P3K kemudian lakukan pertolongan pertama pada korban kecelakaan yang sudah dievakuasi oleh tim evakuasi';
+  //     } else {
+  //       msgTxt = 'Lakukan protokol evakuasi dan secepatnya ke titik kumpul evakuasi.';
+  //     }
+  //   }
+  
+  //   return msgTxt;
+  // };
+  
+
+  // // Listen to Members
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     console.log('fetching data...')
+  //     try {
+  //       // Handle if simulations
+  //       if (simulation === true) {
+  //         const infoMsg = await getMemberGroup();
+  //         setInfoMessage(infoMsg);
+  //       }
+  //     } catch (e) {
+  //       console.log('Error:', e);
+  //     }
+  //   };
+  
+  //   fetchData();
+  // }, []);
+  
+  // useEffect(() => {
+  //   console.log('infoMsg:', infoMessage);
+  // }, [infoMessage]);
+  
+  // useEffect(() => {
+  //   try {
+  //     // Handle if simulations
+  //     if (simulation == true) {
+  //       console.log('logging: ', getMemberGroup())
+  //       // getMemberGroup();
+  //     }
+  //   } catch (e) {
+  //     console.log('Error : ', e);
+  //   }
+  // }, [])
   
   // Handle who can end the alarm
   useEffect(() => {
@@ -331,23 +520,40 @@ export default function AlarmActive({ route, navigation }) {
       return;
     }
   })
+
   const releaseSound = () => {
     console.log('Sound Released');
     sound.release();
-    stopCountdown();
   }
-  useEffect(() => {
-    // console.log("Sound Played!")
-    // setTimeout(() => {
-    //   sound.setNumberOfLoops(-1)
-    //           .setVolume(1)
-    //           // .setSystemVolume(1)
-    //           .play(() => {
-    //     // console.log('ended');
-    //     // console.log('duration in seconds: ' + sound.getDuration());
-    //   });
-    // }, 100);
-  }, [])
+
+  // useEffect(() => {
+  //   console.log("Sound Played!")
+  //   setTimeout(() => {
+  //     sound.setNumberOfLoops(-1)
+  //     .setVolume(1)
+  //     // .setSystemVolume(1)
+  //     .play(() => {
+  //       releaseSound();
+  //     });
+  //   }, 1000);
+  // }, [])
+
+  const getTimeFromString = (dateTimeString) => {
+    const [date, time] = dateTimeString.split(', ');
+
+    const [month, day, year] = date.split('/');
+    const formattedDate = `${year}-${month}-${day}`;
+
+    const timeString = formattedDate + ' ' + time;
+    const dateObj = new Date(timeString);
+    const formattedTime = dateObj.toLocaleTimeString();
+
+    return formattedTime;
+  };
+
+  // useEffect(() => {
+  //   console.log('alarmMembers: ', alarmMembers, '\n\n')
+  // }, [alarmMembers])
  
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#222F34', width: '100%', flexDirection: 'column' }}>
@@ -384,6 +590,22 @@ export default function AlarmActive({ route, navigation }) {
                   <Text style={styles.infoTextMessage}>{infoMessage}</Text>
                 </View>
               </View>
+
+              {/* <View style={styles.reportWrapper}>
+                <Text style={{ fontWeight: '600', marginBottom: 5 }}>Laporan Waktu tiba di Area Evakuasi</Text>
+                <View style={styles.reportWrapperItem}>
+                    <Text style={{ fontWeight: '600' }}>Nama</Text>
+                    <Text style={{ fontWeight: '600' }}>Waktu</Text>
+                  </View>
+                
+                {Object.entries(alarmMembers).map(([key, values]) => (
+                  <View key={key} style={styles.reportWrapperItem}>
+                      <Text>{values.val().checkin_name ? values.val().checkin_name : 'Anonim'}</Text>
+                      <Text>{values.val().secure_time ? getTimeFromString(values.val().secure_time) : ''}</Text>
+                    </View>
+                ))}
+              </View> */}
+
             </View>
           ) : (
             <View style={styles.pageBodyWrapper}>
@@ -572,6 +794,25 @@ const styles = StyleSheet.create({
     color: 'black',
     textAlign: 'center',
     fontWeight: '600',
+  },
+
+  reportWrapper: {
+    width: '100%',
+    backgroundColor: '#F4F7FF',
+    borderRadius: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  reportWrapperItem: {
+    width: '100%',
+    paddingVertical: 5,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   pageFooterWrapper: {

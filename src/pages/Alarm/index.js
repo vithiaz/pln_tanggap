@@ -23,7 +23,7 @@ export default function Alarm({route}) {
     <Stack.Navigator 
         screenOptions={{
         headerShown: false
-        }}    
+        }}
     >{(pageState == 'pending') && (
       <Stack.Screen
           name="Alert"
@@ -31,14 +31,14 @@ export default function Alarm({route}) {
           initialParams={{ myToken: myToken, checkinId: checkinId, checkinKey: checkinKey }}
         />
     )}
-    <Stack.Screen
-        name="Active"
-        component={AlarmActive}
-        initialParams={{ myToken: myToken, alarmKey: alarmKey, simulation: simulation }}
-        />
-    <Stack.Screen
-        name="Ended"
-        component={AlarmEnded} />
+      <Stack.Screen
+          name="Active"
+          component={AlarmActive}
+          initialParams={{ myToken: myToken, alarmKey: alarmKey, simulation: simulation }}
+          />
+      <Stack.Screen
+          name="Ended"
+          component={AlarmEnded} />
     </Stack.Navigator>
   )
 }

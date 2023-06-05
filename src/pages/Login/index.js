@@ -1,4 +1,4 @@
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import React, { useState, useEffect, useContext } from 'react'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
 import { child, push, ref, set, update } from 'firebase/database';
+import Loader from '../../components/loader.js';
 
 const PageContentCard = (props) => {
   const [deviceToken, setDeviceToken] = useState('');
@@ -23,9 +24,9 @@ const PageContentCard = (props) => {
     getDeviceToken()
   })
 
-
   const [email, setEmail] = useState(null);
   const [password, setPassword] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const updateDeviceToken = () => {
     // const newPostKey = push(child(ref(db), 'users/' + auth.currentUser.uid)).key;
@@ -34,17 +35,32 @@ const PageContentCard = (props) => {
     update(ref(db), updates)
   }
   
-  const onHandleLogin = () => {
-    if (email !== "" && password !== "") {
+  const onHandleLogin = async () => {
+    if (email !== "" && password !== "")
+    {
+      setIsLoading(true)
       signInWithEmailAndPassword(auth, email, password)
-          .then((userCredential) => {
-            console.log("Login Success");
-            updateDeviceToken();
-            props.redirect();
-            // navigation.goBack()
-          })
-          .catch((err) => console.log('Login error : ', err))
-      }
+        .then((userCredential) => {
+          setIsLoading(false)
+          console.log("Login Success");
+          updateDeviceToken();
+          props.redirect();
+          // navigation.goBack()
+        })
+        .catch((err) => {
+          setIsLoading(false)
+          Alert.alert(
+            'Login gagal',
+            err.message,
+            [
+              {text: 'OK', onPress: () => console.log('OK Pressed')},
+            ],
+            { cancelable: true }
+          )
+        })
+    }
+        
+      
 
       // createUserWithEmailAndPassword(auth, email, password)
       //   .then((userCredential) => {
@@ -66,41 +82,44 @@ const PageContentCard = (props) => {
   }
 
   return (
-    <View style={contentCardStyles.contentCard}>
-      <View style={styles.containerFillHeight}>
-        {/* Card Body */}
-        <View style={contentCardStyles.cardBody} >
-          <Text style={{ fontWeight: 700, fontSize: 22, color: 'black', letterSpacing: 2, marginBottom: 10, }}>Login</Text>
-          <View style={contentCardStyles.formInput}>
-            <Text style={contentCardStyles.formInputLabel}>Email</Text>
-            <TextInput
-              style={contentCardStyles.formInputText}
-              placeholder='user email'
-              onChangeText={(text) => setEmail(text)}
-            ></TextInput>
+    <>
+      {isLoading ? (<Loader/>) : null}
+      <View style={contentCardStyles.contentCard}>
+        <View style={styles.containerFillHeight}>
+          {/* Card Body */}
+          <View style={contentCardStyles.cardBody} >
+            <Text style={{ fontWeight: 700, fontSize: 22, color: 'black', letterSpacing: 2, marginBottom: 10, }}>Login</Text>
+            <View style={contentCardStyles.formInput}>
+              <Text style={contentCardStyles.formInputLabel}>Email</Text>
+              <TextInput
+                style={contentCardStyles.formInputText}
+                placeholder='user email'
+                onChangeText={(text) => setEmail(text)}
+              ></TextInput>
+            </View>
+            <View style={contentCardStyles.formInput}>
+              <Text style={contentCardStyles.formInputLabel}>Password</Text>
+              <TextInput
+                secureTextEntry={true}
+                style={contentCardStyles.formInputText}
+                placeholder='password'
+                onChangeText={(text) => setPassword(text)}
+              ></TextInput>
+            </View>
+            <TouchableOpacity style={contentCardStyles.LoginButton} onPress={() => onHandleLogin()}>
+              <Text style={contentCardStyles.LoginButtonText}>LOGIN</Text>
+            </TouchableOpacity>
           </View>
-          <View style={contentCardStyles.formInput}>
-            <Text style={contentCardStyles.formInputLabel}>Password</Text>
-            <TextInput
-              secureTextEntry={true}
-              style={contentCardStyles.formInputText}
-              placeholder='password'
-              onChangeText={(text) => setPassword(text)}
-            ></TextInput>
-          </View>
-          <TouchableOpacity style={contentCardStyles.LoginButton} onPress={() => onHandleLogin()}>
-            <Text style={contentCardStyles.LoginButtonText}>LOGIN</Text>
-          </TouchableOpacity>
-        </View>
-        {/* Card Footer */}
-        <View style={contentCardStyles.cardFooter} >
-          <View style={contentCardStyles.footerLogoContainer}>
-            <Image source={PLN_logo} style={contentCardStyles.footerLogo} />
-            <Text style={contentCardStyles.footerLogoText}>PLN</Text>
+          {/* Card Footer */}
+          <View style={contentCardStyles.cardFooter} >
+            <View style={contentCardStyles.footerLogoContainer}>
+              <Image source={PLN_logo} style={contentCardStyles.footerLogo} />
+              <Text style={contentCardStyles.footerLogoText}>PLN</Text>
+            </View>
           </View>
         </View>
       </View>
-    </View>
+    </>
   )
 }
 

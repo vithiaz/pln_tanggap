@@ -21,6 +21,7 @@ import { child, onValue, push, ref, set } from 'firebase/database'
 import { db, messagingApiUrl, messagingServerKey } from '../../config/firebase'
 import { useFocus } from 'native-base/lib/typescript/components/primitives'
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Loader from '../../components/loader';
 
 export default AlarmAlert = ({ route, navigation }) => {
   const infoMessageHeader = 'INFORMASI PENTING';
@@ -36,6 +37,7 @@ export default AlarmAlert = ({ route, navigation }) => {
   const [guestTokens, setGuestTokens] = useState([]);
   const [notifyTokens, setNotifyTokens] = useState([])
   const [safePointId, setSafePointId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInformationChange = (info) => {
     setInformation(info);
@@ -184,22 +186,52 @@ export default AlarmAlert = ({ route, navigation }) => {
           simulation: false
         }
       }
-      sendPushNotification(notificationData);
-      
-      const activeAlarmData = {
-        alarmKey: alarmKey,
-        simulation: false
+
+      const notificationAwaker = {
+        registration_ids: notifyTokensResult,
+        priority: "high",
+        notification: {
+          title: "",
+          body: "",
+          sound: "",
+          android_channel_id: "default",
+          // android_channel_id: "alarm_channel",
+        },
+        data: {
+          notificationType: 'awaker',
+        }
       }
-      AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
-      navigation.navigate('Active', {
-        myToken: myToken,
-        alarmKey: alarmKey,
-        simulation: false
-       }, { replace: true });
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Alert' }]
-      });
+
+      const sendAwaker = () => {
+        console.log('sending awaker...');
+        setIsLoading(true)
+        sendPushNotification(notificationAwaker);
+      }
+
+      sendAwaker();
+      setTimeout(() => {
+        console.log('sending notification...');
+        sendPushNotification(notificationData);
+        setIsLoading(false)
+        
+        console.log('notification send...');
+        const activeAlarmData = {
+          alarmKey: alarmKey,
+          simulation: false
+        }
+        AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
+        navigation.navigate('Active', {
+          myToken: myToken,
+          alarmKey: alarmKey,
+          simulation: false
+         }, { replace: true });
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Alert' }]
+        });
+      }, 7000)
+      
+            
     }
     catch (e) {
       console.log('Error while activating alarm: ', e);
@@ -208,41 +240,44 @@ export default AlarmAlert = ({ route, navigation }) => {
   }
   
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
-      <SafeAreaView style={{ height: '100%', }}>
-        <View style={styles.pageContainer}>
-          <View style={styles.topNavigationWrapper}>
-            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
-              <Image source={BackIcon} style={styles.buttonIcon} />
-            </TouchableOpacity>
-          </View>
+    <>
+      {isLoading ? (<Loader/>) : null}
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
+        <SafeAreaView style={{ height: '100%', }}>
+          <View style={styles.pageContainer}>
+            <View style={styles.topNavigationWrapper}>
+              <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
+                <Image source={BackIcon} style={styles.buttonIcon} />
+              </TouchableOpacity>
+            </View>
 
-          {/* Alarm Button */}
-          <View style={styles.pageBodyWrapper}>
-            <TouchableOpacity style={styles.alarmButton} onPress={handleAlarmTriggered}>
-              <Image source={SirenIcon} style={styles.alarmButtonIcon}/>
-              <Text style={styles.alarmButtonText}>BUNYIKAN ALARM</Text>
-            </TouchableOpacity>
-                        
-            {/* Info Wrapper */}
-            <View style={styles.infoWrapper}>
-              <Image source={AlertIcon} style={styles.infoCardIcon} />
-              <View style={styles.infoTextWrapper}>
-                <Text style={styles.infoTextHeader}>{infoMessageHeader}</Text>
-                <Text style={styles.infoTextMessage}>{infoMessage}</Text>
+            {/* Alarm Button */}
+            <View style={styles.pageBodyWrapper}>
+              <TouchableOpacity style={styles.alarmButton} onPress={handleAlarmTriggered}>
+                <Image source={SirenIcon} style={styles.alarmButtonIcon}/>
+                <Text style={styles.alarmButtonText}>BUNYIKAN ALARM</Text>
+              </TouchableOpacity>
+                          
+              {/* Info Wrapper */}
+              <View style={styles.infoWrapper}>
+                <Image source={AlertIcon} style={styles.infoCardIcon} />
+                <View style={styles.infoTextWrapper}>
+                  <Text style={styles.infoTextHeader}>{infoMessageHeader}</Text>
+                  <Text style={styles.infoTextMessage}>{infoMessage}</Text>
+                </View>
+              </View>
+
+              <View style={styles.addInfoWrapper}>
+                <Text style={{ color: 'black', fontWeight: '600' }}>Informasi :</Text>
+                <TextInput placeholder='Informasi keadaan darurat...' onChangeText={handleInformationChange}></TextInput>
               </View>
             </View>
 
-            <View style={styles.addInfoWrapper}>
-              <Text style={{ color: 'black', fontWeight: '600' }}>Informasi :</Text>
-              <TextInput placeholder='Informasi keadaan darurat...' onChangeText={handleInformationChange}></TextInput>
-            </View>
+
           </View>
-
-
-        </View>
-      </SafeAreaView>
-    </ScrollView>
+        </SafeAreaView>
+      </ScrollView>
+    </>
   )
 }
 

@@ -1,9 +1,10 @@
 import React, {Component, useState, useEffect, createContext} from 'react';
-import { Alert, AppRegistry, Text, Touchable, TouchableOpacity, Linking } from 'react-native';
+import { AppState, Alert, AppRegistry, Text, Touchable, TouchableOpacity, Linking } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import RNRestart from 'react-native-restart'; 
 
 import { AuthUserProvider } from './src/provider/auth_user.js'
 
@@ -27,61 +28,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import SimulationInfo from './src/pages/SimulationInfo/index.js';
 import SafetyInduction from './src/pages/SafetyInduction/index.js';
 
+import BackgroundTimer from 'react-native-background-timer';
+import BackgroundFetch from 'react-native-background-fetch';
 
-emergencyNotificationChannel();
 messaging().requestPermission();
-
-RNNotificationCall.addEventListener('answer', (data) => {
-  const { callUUID, payloadJSON } = data;
-  const payload = JSON.parse(data.payload);
-
-  console.log('payload data', payload);
-  console.log('Listen payload', payload.alarmKey);
-  console.log('simulation payload', payload.simulation);
-  const activeAlarmData = {
-      alarmKey: payload.alarmKey,
-      simulation: payload.simulation
-    }
-  AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
-  RNNotificationCall.backToApp();
-  // console.log('press answer', callUUID);
-  // props.setActiveAlarm(payload.alarmKey);
-  // navigation.navigate('Alarm', {alarmState: 'incoming', alarmKey: payload.alarmKey});
-});
-
-messaging().setBackgroundMessageHandler(async remoteMessage => {
-  console.log('Message handled in the background!', remoteMessage);
-  if (remoteMessage.data.notificationType == 'emergency') {
-    RNNotificationCall.displayNotification(
-      remoteMessage.messageId,
-      null,
-      180000,
-      {
-        channelId: 'alert-channel',
-        channelName: 'Alert Channel',
-        notificationIcon: 'ic_launcher', //mipmap
-        notificationTitle: remoteMessage.notification.title,
-        notificationBody: remoteMessage.notification.body,
-        answerText: 'Lihat',
-        declineText: 'Abaikan',
-        notificationColor: 'colorAccent',
-        notificationSound: null, //raw
-        payload: remoteMessage.data
-        // notificationColor: 'red',
-        // mainComponent:'PlnTanggap',//AppRegistry.registerComponent('MyReactNativeApp', () => CustomIncomingCall);
-      }
-    );
-    const activeAlarmData = {
-      alarmKey: remoteMessage.data.alarmKey,
-      simulation: remoteMessage.data.simulation
-    }
-    AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
-  }
-
-})
-
-// Notification handler 
-
 
 const Stack = createStackNavigator();
 
@@ -89,6 +39,7 @@ const HomeStack = (props) => {
     const navigation = useNavigation();
     const [activeAlarm, setActiveAlarm] = useState(false);
     // const [isSimulation, setIsSimulation] = useState(false);
+    const [simulationStat, setSimulationStat] = useState(false);
     const [deviceToken, setDeviceToken] = useState('');
     const getDeviceToken = async() => {
       try {
@@ -106,6 +57,7 @@ const HomeStack = (props) => {
           const alarmKey = JSON.parse(saveAlarmData).alarmKey;
           const isSimulation = JSON.parse(saveAlarmData).simulation
           setActiveAlarm(alarmKey)
+          setSimulationStat(isSimulation)
           navigation.navigate('Alarm', {
             alarmState: 'incoming',
             alarmKey: alarmKey,
@@ -118,27 +70,39 @@ const HomeStack = (props) => {
       }
     }
     useEffect(() => {
+      getDeviceToken();
       handleActiveAlarm();
     }, [])
 
     // Handle notification when app is running foreground
     useEffect(() => {
       const unsubscribe = messaging().onMessage(async remoteMessage => {
-        console.log('FCM Arrived!');
+        // console.log('FCM Arrived!!!!');
         if (remoteMessage.data.notificationType == 'emergency') {
+          RNRestart.restart();
+          
           const alarmKey = remoteMessage.data.alarmKey;
           const simulation = remoteMessage.data.simulation;
+
+          setActiveAlarm(alarmKey);
+          setSimulationStat(simulation);
+
           const activeAlarmData = {
             alarmKey: alarmKey,
             simulation: simulation
           }
           AsyncStorage.setItem('@activeAlarm', JSON.stringify(activeAlarmData));
+          
           navigation.navigate('Alarm', {
             alarmState: 'incoming',
             alarmKey: alarmKey,
             deviceToken: deviceToken,
             simulation: simulation
           });
+
+
+          // navigation.navigate('SafetyInduction');
+
         }
         
         });
@@ -149,10 +113,11 @@ const HomeStack = (props) => {
       const unsubs = messaging().onNotificationOpenedApp((remoteMessage) => {
         if (remoteMessage.data.notificationType == 'emergency') {
           const alarmKey = remoteMessage.data.alarmKey;
-          props.setActiveAlarm(alarmKey);
+          setActiveAlarm(alarmKey);
+          setSimulationStat(remoteMessage.data.simulation)
+
           navigation.navigate('Alarm', {
-            alarmState: 'incoming',
-            alarmKey: value,
+            alarmKey: alarmKey,
             alarmState: 'incoming',
             deviceToken: deviceToken,
             simulation: remoteMessage.data.simulation
@@ -165,44 +130,105 @@ const HomeStack = (props) => {
 
 
   return (
-    <Stack.Navigator 
-      screenOptions={{
-        headerShown: false
-      }}    
-      >
-      <Stack.Screen
-        name="Home"
-        component={Home}
-        />
-      <Stack.Screen
-        name="Login"
-        component={Login}
-        />
-      <Stack.Screen
-        name="CreateSimulation"
-        component={CreateSimulation}
-        />
-      <Stack.Screen
-        name="SimulationInfo"
-        component={SimulationInfo}
-        />
-      <Stack.Screen
-        name="Alarm"
-        component={Alarm}
-        />
-      <Stack.Screen
-        name="SafetyInduction"
-        component={SafetyInduction}
-        />
-    </Stack.Navigator>
-  );
-
+      <Stack.Navigator 
+        screenOptions={{
+          headerShown: false
+        }}    
+        >
+          <Stack.Screen
+            name="Home"
+            component={Home}
+            />
+          <Stack.Screen
+            name="Login"
+            component={Login}
+            />
+          <Stack.Screen
+            name="CreateSimulation"
+            component={CreateSimulation}
+            />
+          <Stack.Screen
+            name="SimulationInfo"
+            component={SimulationInfo}
+            />
+          <Stack.Screen
+            name="Alarm"
+            component={Alarm}
+            />
+          <Stack.Screen
+            name="SafetyInduction"
+            component={SafetyInduction}
+            />
+      </Stack.Navigator>
+  )
 }
 
 export const TokenContext = createContext();
 
 
 const App = () => {
+
+  useEffect(() => {
+    // Handle app state changes
+    AppState.addEventListener('change', handleAppStateChange);
+
+    // Start background tasks
+    startBackgroundTasks();
+
+    return () => {
+      AppState.removeEventListener('change', handleAppStateChange);
+    };
+  }, []);
+
+  const handleAppStateChange = (newState) => {
+    if (newState === 'active') {
+      // App is back to foreground, restart background tasks
+      startBackgroundTasks();
+    }
+  };
+
+  const startBackgroundTasks = () => {
+    BackgroundTimer.start();
+    BackgroundFetch.configure({}, () => {
+      // Perform background task here
+      // For example, make API calls or update data
+
+      // Once the background task is finished, you can call the following
+      BackgroundFetch.finish(BackgroundFetch.FETCH_RESULT_NEW_DATA);
+    }, (error) => {
+      console.log('[BackgroundFetch] Error: ', error);
+    });
+    BackgroundFetch.scheduleTask({
+      forceAlarmManager: true,
+      stopOnTerminate: false,
+      startOnBoot: true,
+      enableHeadless: true,
+      delay: 0,
+      periodic: true,
+      enableRemoteNotification: false,
+    });
+  };
+
+
+
+  // const [deviceToken, setDeviceToken] = useState('');
+  
+  // const [devToken, setDevtoken] = useState('');
+
+  // const getDevToken = async() => {
+  //   try {
+  //     const value = await AsyncStorage.getItem('@device_token')
+  //     setDeviceToken(JSON.parse(value))
+  //   } catch(e) {
+  //     console.log(e);
+  //   }
+  // }
+
+  // useEffect(() => {
+  //   getDevToken();
+  //   console.log('dev token: ', deviceToken)
+  // }, [deviceToken])
+
   // useEffect(() => {
   //    // const durationMs = 2 * 1000; // 120 seconds = 120,000 milliseconds
   //     // Vibration.vibrate(durationMs);
@@ -212,26 +238,11 @@ const App = () => {
   // }, []);
 
   // Use this for update the device token value in token context provider
-  const [deviceToken, setDeviceToken] = useState('');
-  const handleUpdateDeviceToken = (token) => {
-    setDeviceToken(token);
-  };
-  
-  // useEffect(() => {
-  //   const getUrlAsync = async () => {
-  //     // Get the deep link used to open the app
-  //     const initialUrl = await Linking.getInitialURL();
-
-  //     // The setTimeout is just for testing purpose
-  //     setTimeout(() => {
-  //       console.log('linking: ', initialUrl);
-  //     }, 1000);
-  //   };
-
-  //   getUrlAsync();
-  // }, []);
-
-  
+  // const [deviceToken, setDeviceToken] = useState('');
+  // const handleUpdateDeviceToken = (token) => {
+  //   setDeviceToken(token);
+  // };
+ 
 
   return (
     // <TokenContext.Provider value={{ deviceToken, setDeviceToken }}>

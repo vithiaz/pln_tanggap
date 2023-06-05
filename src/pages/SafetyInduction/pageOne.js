@@ -1,30 +1,69 @@
 import { Image, StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native'
 import React from 'react'
 
-import SafetyInductionOne from './pageOne.js';
-import SafetyInductionTwo from './pageTwo.js';
+import checklistIcon from '../../assets/icon/checklist.png'
+import backIcon from '../../assets/icon/back.png'
 
-import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer } from '@react-navigation/native';
+export default SafetyInductionOne = ({ navigation }) => {
+  const safetyInductionText = `
+  Anda sekarang berada dalam lingkungan PT PLN (Persero). Sebagai jalan keluar bila terjadi bencana dan pada dinding tembok dapat anda lihat rambu arah evakuasi.
+Bila terjadi bencana atau ada alarm berbunyi dan perintah untuk dimulainya “EVAKUASI – EVAKUASI - EVAKUASI” maka aplikasi akan memandu anda keluar menuju ke titik kumpul yang aman
+Pada saat prosedur evakuasi dimulai, kami mengingatkan agar anda semua
+tetap tenang dan secara teratur mulai keluar dari ruangan ini melewati pintu
+keluar terdekat. Dimulai dari anda yang berada paling dekat dengan pintu
+keluar dan secara berurutan sampai anda yang berada paling jauh dari
+pintu. Perhatikan dengan seksama perintah dan pemandu anda.
 
-const Stack = createStackNavigator();
+1) Selama proses evakuasi anda dilarang membawa barang terlalu banyak dan jangan pernah kembali lagi ke ruangan ini setelah anda berhasil keluar karena alasan apapun.
 
-export default SafetyInduction = ({ navigation }) => {
+2) Apabila bahaya kebakaran yang terjadi, dan kondisi sumber api masih kecil maka siapapun anda yang mampu harus secepatnya mengoperasikan tabung APAR (alat pemadam api ringan) untuk memadamkan api.
+
+3) Saat berjalan mengikuti pemandu atau rambu arah evakuasi, saat asap tebal anda harus berjalan sedikit merunduk/merendah agar pandangan lebih baik.
+
+4) aplikasi akan memandu anda secara aman mengikuti panah arah evakuasi yang akan berakhir di area titik kumpul aman sementara.
+`;
+
+  const nextPageNavigate = () => {
+    navigation.navigate('PageTwo')
+  }
+  
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false
-      }}>
-        <Stack.Screen
-          name="PageOne"
-          component={SafetyInductionOne}
-        />
-        <Stack.Screen
-          name="PageTwo"
-          component={SafetyInductionTwo}
-        />
-    </Stack.Navigator>
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
+      <SafeAreaView style={{ height: '100%', }}>
+        <View style={styles.container}>
+          {/* <View style={styles.topNavigationWrapper}>
+            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
+                <Image source={backIcon} style={styles.buttonIcon} />
+            </TouchableOpacity>
+          </View> */}
+          <View style={styles.pageTitleWrapper}>
+            <TouchableOpacity style={styles.pageIconContainer} >
+                <Image source={checklistIcon} style={styles.pageIcon}/>
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.appTitleText}>Safety Induction</Text>
+              <Text style={styles.appSubtitleText}>1/2</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={contentCardStyles.contentCard}>
+          <View style={styles.containerFillHeight}>
+            <View style={contentCardStyles.cardBody}>
+                <Text style={{ color: 'black', textAlign: 'justify' }}>{safetyInductionText}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <TouchableOpacity style={contentCardStyles.nextPageButton} onPress={nextPageNavigate}>
+                <Text style={contentCardStyles.nextPageText}>Selanjutnya</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+
+      </SafeAreaView>
+    </ScrollView>
   )
 }
 
@@ -44,7 +83,7 @@ const styles = StyleSheet.create({
   
   containerFillHeight: {
     paddingHorizontal: 10,
-    paddingVertical: 20,
+    paddingVertical: 0,
     flexDirection: 'column',
     gap: 10,
     flexGrow: 1,
@@ -92,9 +131,9 @@ const styles = StyleSheet.create({
   pageTitleWrapper: {
     padding: 20,
     flexDirection: 'row',
-    gap: 10,
+    gap: 20,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   appTitleText: {
     flexGrow: 1,
@@ -238,5 +277,17 @@ const contentCardStyles = StyleSheet.create({
   footerLogoText: {
     fontWeight: '600',
     letterSpacing: 4,
+  },
+
+  nextPageButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'black',
+    // backgroundColor: '#fff200',
+    borderRadius: 8,
+  },
+  nextPageText: {
+    color: 'white',
+    fontWeight: '600'
   }
 })

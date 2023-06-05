@@ -7,17 +7,28 @@ import {
   TouchableOpacity,
   Image
 } from 'react-native'
+import RNRestart from 'react-native-restart'; 
 
 import React, { useEffect, useState } from 'react'
 import BackIcon from '../../assets/icon/back.png'
 import CheckIcon from '../../assets/icon/check.png'
 import AlertIcon from '../../assets/icon/alert.png'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { onValue, ref } from 'firebase/database';
+import { db } from '../../config/firebase';
 
 export default function AlarmEnded({ navigation, route }) {
   const infoMessage = 'Tetap di lokasi evakuasi sampai keadaan darurat selesai';
   const infoMessageHeader = 'PERHATIAN ...';
   const [timeCount, setTimeCount] = useState('00:00')
+  const [alarmMembers, setAlarmMembers] = useState([])
+
+  const appendAlarmMember = (newData) => {
+    setAlarmMembers((prevData) => [...prevData, newData]);
+  }
+  
+  const alarmId = route.params.alarmId;
+  const isSimulation = route.params.simulation;
 
   const getCounter = async () => {
     try {
@@ -33,22 +44,66 @@ export default function AlarmEnded({ navigation, route }) {
     AsyncStorage.removeItem('@counterData');
   }, [])
 
+  const handleResetApp = () => {
+    RNRestart.restart()
+  }
 
+  // Listen to alarms table / simulations table
+  useEffect(() => {
+    console.log('Table ID : ', alarmId);
+    console.log('Is simulation: : ', isSimulation);
+    try {
+      // Handle if simulations
+      if (isSimulation == true) {
+        onValue(ref(db, '/simulations/' + alarmId + '/members/'), (snap) => {
+          setAlarmMembers([]);
+          snap.forEach((memberId) => {
+            if (memberId.val().secure_state) {
+              appendAlarmMember(memberId);
+            }
+          })
+        }, { onlyOnce: true })
+      } else {    // Handle if real emergency
+        onValue(ref(db, '/alarms/' + alarmId + '/members/'), (snap) => {
+          setAlarmMembers([]);
+          snap.forEach((memberId) => {
+            appendAlarmMember(memberId);
+          })
+        }, { onlyOnce: true })
+      }
+    } catch (e) {
+      console.log('Error : ', e);
+    }
+  }, [])
+
+  const getTimeFromString = (dateTimeString) => {
+    const [date, time] = dateTimeString.split(', ');
+
+    const [month, day, year] = date.split('/');
+    const formattedDate = `${year}-${month}-${day}`;
+
+    const timeString = formattedDate + ' ' + time;
+    const dateObj = new Date(timeString);
+    const formattedTime = dateObj.toLocaleTimeString();
+
+    return formattedTime;
+  };
   
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#FFF200', width: '100%', flexDirection: 'column' }}>
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
       <SafeAreaView style={{ height: '100%', }}>
         <View style={styles.pageContainer}>
           <View style={styles.topNavigationWrapper}>
-            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
+            {/* <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
               <Image source={BackIcon} style={styles.buttonIcon} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Alarm Button */}
           <View style={styles.pageBodyWrapper}>
-            <TouchableOpacity style={styles.alarmButton}>
+            <TouchableOpacity style={styles.alarmButton} onPress={ () => handleResetApp() }>
               <Image source={CheckIcon} style={styles.alarmButtonIcon}/>
+              <Text style={styles.alarmButtonText}>Kembali ke Beranda</Text>
             </TouchableOpacity>
             
             {/* Time Wrapper */}
@@ -69,6 +124,22 @@ export default function AlarmEnded({ navigation, route }) {
                 <Text style={styles.infoTextMessage}>{infoMessage}</Text>
               </View>
             </View>
+
+            <View style={styles.reportWrapper}>
+              <Text style={{ fontWeight: '600', marginBottom: 5 }}>Laporan Waktu tiba di Area Evakuasi</Text>
+              <View style={styles.reportWrapperItem}>
+                  <Text style={{ fontWeight: '600' }}>Nama</Text>
+                  <Text style={{ fontWeight: '600' }}>Waktu</Text>
+                </View>
+              
+              {Object.entries(alarmMembers).map(([key, values]) => (
+                <View key={key} style={styles.reportWrapperItem}>
+                  <Text>{values.val().checkin_name ? values.val().checkin_name : 'Anonim'}</Text>
+                  <Text>{values.val().secure_time ? getTimeFromString(values.val().secure_time) : ''}</Text>
+                </View>
+              ))}
+            </View>
+
           </View>
 
           {/* Page Footer */}
@@ -154,7 +225,8 @@ const styles = StyleSheet.create({
     height: '50%',
   },
   alarmButtonText: {
-    color: '#ED1C24',
+    // color: '',
+    textAlign: 'center',
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 1,
@@ -213,6 +285,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+
+  reportWrapper: {
+    width: '100%',
+    backgroundColor: '#F4F7FF',
+    borderRadius: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  reportWrapperItem: {
+    width: '100%',
+    paddingVertical: 5,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
 
   pageFooterWrapper: {
     width: '100%',

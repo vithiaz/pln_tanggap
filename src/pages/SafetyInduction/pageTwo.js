@@ -1,30 +1,57 @@
 import { Image, StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native'
 import React from 'react'
 
-import SafetyInductionOne from './pageOne.js';
-import SafetyInductionTwo from './pageTwo.js';
+import checklistIcon from '../../assets/icon/checklist.png'
+import backIcon from '../../assets/icon/back.png'
 
-import { createStackNavigator } from '@react-navigation/stack';
-import { NavigationContainer } from '@react-navigation/native';
+export default SafetyInductionTwo = ({ navigation }) => {
+  const safetyInductionText = `
+  Apabila bencana gempa bumi yang terjadi dan anda terjebak di dalam gedung ini, maka tetap tenang dan berusaha mencari tempat berlindung yang cukup kuat menahan reruntuhan, misalnya di bawah meja sampai bantuan datang menyelamatkan anda.
+1) Semua bencana dapat berpotensi terjadi dan prinsip penyelamatan adalah sama, yaitu secepatnya dan aman menuju titik kumpul aman sementara.
+2) Dan apabila ada diantara peserta yang mendadak tidak sadar karena sebab apapun, maka bagi siapapun yang mampu melakukan prosedur bantuan hidup dasar harus memberikan pertolongan sampai tim kode biru tiba dan siap menggantikan anda.
+3) Terima kasih atas perhatian anda semua, dan saya berharap anda dapat mengikuti semua acara ini dengan aman dan nyaman, dan berdoa agar tidak ada bencana apapun yang terjadi.
+`;
 
-const Stack = createStackNavigator();
-
-export default SafetyInduction = ({ navigation }) => {
-
+  const closeSafetyInductionScreen = () => {
+    navigation.navigate('Home');
+  }
+  
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false
-      }}>
-        <Stack.Screen
-          name="PageOne"
-          component={SafetyInductionOne}
-        />
-        <Stack.Screen
-          name="PageTwo"
-          component={SafetyInductionTwo}
-        />
-    </Stack.Navigator>
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
+      <SafeAreaView style={{ height: '100%', }}>
+        <View style={styles.container}>
+          <View style={styles.topNavigationWrapper}>
+            <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
+                <Image source={backIcon} style={styles.buttonIcon} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.pageTitleWrapper}>
+            <View>
+              <Text style={styles.appTitleText}>Safety Induction</Text>
+              <Text style={styles.appSubtitleText}>2/2</Text>
+            </View>
+            <TouchableOpacity style={styles.pageIconContainer} >
+                <Image source={checklistIcon} style={styles.pageIcon}/>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={contentCardStyles.contentCard}>
+          <View style={styles.containerFillHeight}>
+            <View style={contentCardStyles.cardBody}>
+                <Text style={{ color: 'black', textAlign: 'justify' }}>{safetyInductionText}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <TouchableOpacity style={contentCardStyles.nextPageButton} onPress={closeSafetyInductionScreen}>
+                <Text style={contentCardStyles.nextPageText}>Selesai</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+
+      </SafeAreaView>
+    </ScrollView>
   )
 }
 
@@ -238,5 +265,17 @@ const contentCardStyles = StyleSheet.create({
   footerLogoText: {
     fontWeight: '600',
     letterSpacing: 4,
+  },
+
+  nextPageButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'black',
+    // backgroundColor: '#fff200',
+    borderRadius: 8,
+  },
+  nextPageText: {
+    color: 'white',
+    fontWeight: '600'
   }
 })
