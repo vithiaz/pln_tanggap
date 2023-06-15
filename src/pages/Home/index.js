@@ -36,6 +36,8 @@ import userDefaultIcon from '../../assets/icon/user_default.png';
 import bellRingingIcon from '../../assets/icon/bell_ringing.png';
 import timeIcon from '../../assets/icon/time.png';
 import LogoutIcon from '../../assets/icon/check_in_out.png';
+import SimulationIcon from '../../assets/icon/simulation.png';
+import UsersIcon from '../../assets/icon/users.png';
 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import firebase from 'firebase/app';
@@ -251,9 +253,16 @@ const Home = ({ navigation }) => {
           setDeviceToken={setDeviceToken}
           navigation={navigation}
           />
+          
           {userType == 'host' ? (
-            <HostMenu isHost={true} isCheckin={isCheckin} />
+            <HostMenu
+              isHost={true}
+              isCheckin={isCheckin}
+              userInfo={userInfo}
+              deviceToken={deviceToken}
+              />
           ) : ''}
+        
         <CardBody
           userAuth={user}
           userInfo={userInfo}
@@ -636,25 +645,50 @@ const HostMenu = (props) => {
   useEffect(() => {
     setIsCheckin(props.isCheckin);
     setIsHost(props.isHost);
-  }, [props])
 
+  }, [props])
+  
   const navigation = useNavigation();
   const navigateToCreateSimulation = () => {
     navigation.navigate('CreateSimulation');
   }
+  
+  const navigateToAddUser = () => {
+    data = {
+        office_UID: props.userInfo.office_UID,
+        deviceToken: props.deviceToken,
+    }
+    navigation.navigate('AddUser', data);
+  }
+  const navigateToAddOffice = () => {
+    navigation.navigate('AddOffice');
+  }
+
   return (
     <View style={hostMenuStyles.hostMenuContainer}>
       <Text style={hostMenuStyles.containerTitle}>Host Menu</Text>
-      <View style={hostMenuStyles.buttonWrapper}>
+      <ScrollView horizontal={true} style={hostMenuStyles.buttonWrapper}>
         <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToCreateSimulation}>
-          <Image source={SettingsIcon} style={hostMenuStyles.buttonIcon}/>
-          <Text style={hostMenuStyles.buttonText}>Simulasi</Text>
+          <Image source={SimulationIcon} style={hostMenuStyles.buttonIcon}/>
+          <Text style={hostMenuStyles.buttonText}>Tambah Simulasi</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToAddUser}>
+          <Image source={UsersIcon} style={hostMenuStyles.buttonIcon}/>
+          <Text style={hostMenuStyles.buttonText}>Tambah User</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToAddOffice}>
+          <Image source={OfficeIcon} style={hostMenuStyles.buttonIcon}/>
+          <Text style={hostMenuStyles.buttonText}>Tambah Kantor</Text>
+        </TouchableOpacity>
+
+        {/* SimulationIcon
+        UsersIcon */}
+
         {/* <TouchableOpacity style={hostMenuStyles.menuButton}>
           <Image source={AnnouncementIcon} style={hostMenuStyles.buttonIcon}/>
           <Text style={hostMenuStyles.buttonText}>Pengumuman</Text>
         </TouchableOpacity> */}
-      </View>
+      </ScrollView>
     </View>
   );
 
@@ -1060,33 +1094,36 @@ const checkoutInfoStyles = StyleSheet.create({
 
 const hostMenuStyles = StyleSheet.create({
   hostMenuContainer: {
-    paddingHorizontal: 20,
+    flexDirection: 'column',
     paddingBottom: 20,
-    flexDirection: 'row',
     gap: 10,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
   },
   containerTitle: {
+    paddingHorizontal: 20,
     color: 'black',
     fontSize: 16,
     fontWeight: '600',
   },
   buttonWrapper: {
-    flexDirection: 'column',
-    gap: 10,
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    // padding: 10,
+    // flexDirection: 'column',
+    // gap: 10,
+    // alignItems: 'flex-end',
+    // justifyContent: 'flex-end',
   },
   menuButton: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 15,
+    gap: 5,
+    paddingHorizontal: 30,
     paddingVertical: 5,
     borderRadius: 12,
-    backgroundColor: '#ed1c24',
+    backgroundColor: '#F4F7FF',
+    margin: 5,
   },
   buttonIcon: {
     height: 25,
@@ -1094,7 +1131,7 @@ const hostMenuStyles = StyleSheet.create({
   },
   buttonText: {
     fontWeight: 600,
-    color: 'white',
+    color: 'black',
   }
 
 })

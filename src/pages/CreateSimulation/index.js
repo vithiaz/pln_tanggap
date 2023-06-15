@@ -140,38 +140,38 @@ const PageContentCard = ({ navigation }) => {
     return (
     <View style={contentCardStyles.contentCard}>
         <View style={styles.containerFillHeight}>
-        {/* Card Body */}
-        <View style={contentCardStyles.cardBody} >
-            <View style={contentCardStyles.formInput}>
-                <Text style={contentCardStyles.formInputLabel}>Nama Simulasi</Text>
-                <TextInput style={contentCardStyles.formInputText} placeholder='simulasi' onChangeText={handleSimulationName}></TextInput>
-            </View>
+          {/* Card Body */}
+          <View style={contentCardStyles.cardBody}>
+              <View style={contentCardStyles.formInput}>
+                  <Text style={contentCardStyles.formInputLabel}>Nama Simulasi</Text>
+                  <TextInput style={contentCardStyles.formInputText} placeholder='simulasi' onChangeText={handleSimulationName}></TextInput>
+              </View>
 
-            <Text style={contentCardStyles.formInputLabel}>Lokasi</Text>
-            <LocationPicker items={officeSelect} selectedItem={selectedItem} onSelect={handleSelect} />
+              <Text style={contentCardStyles.formInputLabel}>Lokasi</Text>
+              <LocationPicker items={officeSelect} selectedItem={selectedItem} onSelect={handleSelect} />
 
-            <Text style={contentCardStyles.formInputLabel}>Tanggal dan Waktu</Text>
-            {/* Input Date Picker */}
-            <View style={contentCardStyles.datetimeForm}>
-                <DateInputPicker selectedDate={inputDate} onSelect={handleDateChange} />
-                <TimeInputPicker onTimeChange={handleTimeChange}  />
-            </View>
-            
-            {/* Buttons */}
-            <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={storeSimulation}>
-                <Text style={contentCardStyles.SubmitButtonText}>ATUR SIMULASI</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={contentCardStyles.AbortButton} onPress= {() => navigation.pop()}>
-                <Text style={contentCardStyles.AbortButtonText}>BATALKAN</Text>
-            </TouchableOpacity>
-        </View>
-        {/* Card Footer */}
-        <View style={contentCardStyles.cardFooter} >
-            <View style={contentCardStyles.footerLogoContainer}>
-            <Image source={PLN_logo} style={contentCardStyles.footerLogo} />
-            <Text style={contentCardStyles.footerLogoText}>PLN</Text>
-            </View>
-        </View>
+              <Text style={contentCardStyles.formInputLabel}>Tanggal dan Waktu</Text>
+              {/* Input Date Picker */}
+              <View style={contentCardStyles.datetimeForm}>
+                  <DateInputPicker selectedDate={inputDate} onSelect={handleDateChange} />
+                  <TimeInputPicker onTimeChange={handleTimeChange}  />
+              </View>
+              
+              {/* Buttons */}
+              <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={storeSimulation}>
+                  <Text style={contentCardStyles.SubmitButtonText}>ATUR SIMULASI</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={contentCardStyles.AbortButton} onPress= {() => navigation.pop()}>
+                  <Text style={contentCardStyles.AbortButtonText}>BATALKAN</Text>
+              </TouchableOpacity>
+          </View>
+          {/* Card Footer */}
+          <View style={contentCardStyles.cardFooter} >
+              <View style={contentCardStyles.footerLogoContainer}>
+              <Image source={PLN_logo} style={contentCardStyles.footerLogo} />
+              <Text style={contentCardStyles.footerLogoText}>PLN</Text>
+              </View>
+          </View>
         </View>
     </View>
   )

@@ -30,4 +30,4 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 
-export { messagingServerKey, messagingApiUrl, auth, db };
+export { messagingServerKey, messagingApiUrl, auth, db, firebaseConfig };

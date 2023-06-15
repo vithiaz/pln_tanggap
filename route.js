@@ -27,9 +27,11 @@ import NotificationAlert from './src/pages/NotificationAlert/index.js';
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import SimulationInfo from './src/pages/SimulationInfo/index.js';
 import SafetyInduction from './src/pages/SafetyInduction/index.js';
+import AddUser from './src/pages/AddUser/index.js';
 
 import BackgroundTimer from 'react-native-background-timer';
 import BackgroundFetch from 'react-native-background-fetch';
+import AddOffice from './src/pages/AddOffice/index.js';
 
 messaging().requestPermission();
 
@@ -146,6 +148,14 @@ const HomeStack = (props) => {
           <Stack.Screen
             name="CreateSimulation"
             component={CreateSimulation}
+            />
+          <Stack.Screen
+            name="AddUser"
+            component={AddUser}
+            />
+          <Stack.Screen
+            name="AddOffice"
+            component={AddOffice}
             />
           <Stack.Screen
             name="SimulationInfo"

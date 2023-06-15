@@ -59,25 +59,6 @@ const PageContentCard = (props) => {
           )
         })
     }
-        
-      
-
-      // createUserWithEmailAndPassword(auth, email, password)
-      //   .then((userCredential) => {
-      //     try {
-      //       set(ref(db, 'users/' + userCredential.user.uid), {
-      //         email: userCredential.user.email,
-      //         name: '',
-      //         user_type: 'guest',
-      //         device_token : deviceToken
-      //       });
-      //       console.log('Register success with id', userCredential.user.uid);
-      //     }
-      //     catch(e) {
-      //       console.log('Register failed: ', e);
-      //     }
-      //   })
-      // }
 
   }
 
