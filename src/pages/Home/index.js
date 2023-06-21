@@ -444,9 +444,9 @@ const CheckoutInfo = (props) => {
   const [checkinDataInfo, setCheckinData] = useState(false);
   const [office, setOffice] = useState([]);
   
-  useEffect(() => {
-    console.log('tracking ...: ', props.checkinKey);
-  }, [props.checkinKey]);
+  // useEffect(() => {
+  //   console.log('tracking ...: ', props.checkinKey);
+  // }, [props.checkinKey]);
   
   useEffect( () => {     
     onValue(ref(db, '/offices/'), (snap) => {
@@ -477,7 +477,7 @@ const CheckoutInfo = (props) => {
   }
 
   // Handle Checkin
-  const handleSelectedLocation = (checkinLocation, nameInput) =>
+  const handleSelectedLocation = (checkinLocation, checkinData) =>
   {
     // console.log('checkinLocation :', checkinLocation);
     // console.log('nameInput :', nameInput);
@@ -523,7 +523,10 @@ const CheckoutInfo = (props) => {
       try {
         set(tableRef, {
           device_token: props.deviceToken,
-          checkin_name: nameInput,
+          checkin_name: checkinData.nameInput,
+          checkin_phone: checkinData.phoneInput,
+          checkin_job: checkinData.jobInput,
+          checkin_position: checkinData.positionInput,
           checkin_time: getCurrentTime(),
           checkout_time: null,
           location_id: checkinLocation.key,
@@ -531,13 +534,13 @@ const CheckoutInfo = (props) => {
         });
         props.setCheckin(true)
         props.setCheckinId(props.deviceToken);
-        props.setCheckinName(nameInput);
+        props.setCheckinName(checkinData.nameInput);
         props.setCheckinKey(checkinLocation.key);
         props.setCheckinLocation(checkinLocation.label);
         
         AsyncStorage.setItem('@isCheckin', JSON.stringify({
           checkinId: props.deviceToken,
-          checkinName: nameInput,
+          checkinName: checkinData.nameInput,
           checkinLocation: checkinLocation.label,
           checkinKey: checkinLocation.key
         }));

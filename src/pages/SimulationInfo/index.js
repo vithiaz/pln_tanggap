@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Animated, Dimensions } from 'react-native'
+import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Animated, Dimensions, Platform, PermissionsAndroid } from 'react-native'
 import axios from 'axios';
 
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
@@ -9,6 +9,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { push, child, ref, set, update, onValue } from 'firebase/database';
 import { db, messagingApiUrl, messagingServerKey } from '../../config/firebase';
 import { TouchEventType } from 'react-native-gesture-handler/lib/typescript/TouchEventType';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
+
+
+import XLSX from 'xlsx';
+import RNFS from 'react-native-fs';
+import Share from 'react-native-share';
+import RNFetchBlob from 'rn-fetch-blob'
+
 
 import CheckInOutIcon from '../../assets/icon/check_in_out.png';
 import SecurityIcon from '../../assets/icon/guard.png';
@@ -18,6 +26,7 @@ import DokumenIcon from '../../assets/icon/document_guard.png';
 import MedicIcon from '../../assets/icon/medic.png';
 import GuestIcon from '../../assets/icon/guest.png';
 import Loader from '../../components/loader';
+import { Alert } from 'native-base';
 
 export default SimulationInfo = ({route, navigation}) => {
     const simulationId = route.params.simulationId;
@@ -240,18 +249,224 @@ export default SimulationInfo = ({route, navigation}) => {
     useEffect(() => {
       const unsubscribe = () => {
         onValue(ref(db, '/simulations/' + simulationId + '/members'), (snap) => {
-        setNotificationIds([]);
-        const data_ids = [];
-        snap.forEach((snapchild) => {
-          const token = snapchild.val().device_token;
-          data_ids.push(token)
+          setNotificationIds([]);
+          const data_ids = [];
+          snap.forEach((snapchild) => {
+            const token = snapchild.val().device_token;
+            data_ids.push(token)
+          })
+          console.log('getting ids: ', data_ids)
+          setNotificationIds(data_ids);
         })
-        console.log('getting ids: ', data_ids)
-        setNotificationIds(data_ids);
-      })
     }
     return unsubscribe();
     }, [])
+
+    const testExportIds = async () => {
+      try {
+        const membersData = []
+        onValue(ref(db, '/simulations/' + simulationId + '/members'), (snap) => {
+          snap.forEach((snapchild) => {
+            membersData.push(snapchild.val())
+          })
+        }, {onlyOnce: true})
+
+        downloadExcelFile(membersData)
+  
+        
+        // let isPermitedExternalStorage = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+        // console.log('perm: ', isPermitedExternalStorage)
+        
+        // if (!isPermitedExternalStorage) {
+
+        //   // Ask for permission
+        //   const granted = await PermissionsAndroid.request(
+        //     PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        //     {
+        //       title: "Storage permission needed",
+        //       buttonNeutral: "Ask Me Later",
+        //       buttonNegative: "Cancel",
+        //       buttonPositive: "OK"
+        //     }
+        //   );
+
+        //   if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        //     // Permission Granted (calling our exportDataToExcel function)
+        //     downloadExcelFile(membersData)
+        //     console.log("Permission granted");
+        //   } else {
+        //     // Permission denied
+        //     console.log("Permission denied");
+        //   }
+
+        // } else {
+        //   downloadExcelFile(membersData)
+        // }
+
+        // console.log(membersData);
+      }
+      catch (e) {
+        console.log('Error: ', e)
+      }
+
+    }
+
+    // Export Marker / Checkpoint
+    const downloadExcelFile = async (data) => {
+      const orderLines = [
+        {
+          id: 1,
+          product: 'Product 1',
+          quantity: 1,
+          price: '$10.00',
+        },
+        {
+          id: 2,
+          product: 'Product 2',
+          quantity: 2,
+          price: '$20.00',
+        },
+        {
+          id: 3,
+          product: 'Product 3',
+          quantity: 3,
+          price: '$30.00',
+        },
+      ];
+
+      
+      try {
+        const html = `
+          <html>
+            <head>
+              <style>
+                body {
+                  font-family: 'Helvetica';
+                  font-size: 12px;
+                }
+                header, footer {
+                  height: 50px;
+                  background-color: #fff;
+                  color: #000;
+                  display: flex;
+                  justify-content: center;
+                  padding: 0 20px;
+                }
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                }
+                th, td {
+                  border: 1px solid #000;
+                  padding: 5px;
+                }
+                th {
+                  background-color: #ccc;
+                }
+              </style>
+            </head>
+            <body>
+              <header>
+                <h1>Invoice for Order #</h1>
+              </header>
+              <h1>Order Details</h1>
+              <table>
+                <tr>
+                  <th>Order ID</th>
+                  <td></td> 
+                </tr>
+                <tr>
+                  <th>Order Date</th>
+                  <td>29-Jul-2022</td>
+                </tr>
+                <tr>
+                  <th>Order Status</th>
+                  <td>Completed</td>
+                </tr>
+                <tr>
+                  <th>Order Total</th>
+                  <td>$13232</td>
+                </tr>
+              </table>
+              <h1>Order Lines</h1>
+              <table>
+                <tr>
+                  <th>Product ID</th>
+                  <th>Product Name</th>
+                  <th>Product Qty</th>
+                  <th>Product Price</th>
+                </tr>
+                ${orderLines
+                  .map(
+                    line => `
+                  <tr>
+                    <td>${line.id}</td>
+                    <td>${line.product}</td>
+                    <td>${line.quantity}</td>
+                    <td>${line.price}</td>
+                  </tr>
+                `,
+                  )
+                  .join('')}
+              </table>
+              <footer>
+                <p>Thank you for your business!</p>
+              </footer>
+            </body>
+          </html>
+        `;
+        // const options = {
+        //   html,
+        //   fileName: 'data_' + Math.floor(date.getTime() + date.getSeconds() / 2),
+        //   directory: 'tempExport',
+        // };
+
+        let date = new Date();
+        const options = {
+          html,
+          fileName: 'data_' + Math.floor(date.getTime() + date.getSeconds() / 2),
+          directory: 'tempExport',
+        };  
+        const file = await RNHTMLtoPDF.convert(options);
+        console.log('Success', `PDF saved to ${file.filePath}`);
+      
+      } catch (e) {
+        console.log(e)
+      }
+  
+
+    }
+
+    // const downloadExcelFile = async (data) => {     
+    //   jsonData = [{id: '1', name: 'First User'},{ id: '2', name: 'Second User'}]
+      
+    //   let wb = XLSX.utils.book_new();
+    //   let ws = XLSX.utils.json_to_sheet(jsonData) 
+    //   XLSX.utils.book_append_sheet(wb,ws,"Users")
+    //   const wbout = XLSX.write(wb, {type:'binary', bookType:"xlsx"})
+
+    //   let date = new Date();
+    //   const { fs } = RNFetchBlob;
+
+    //   let filename = '/data_' + Math.floor(date.getTime() + date.getSeconds() / 2) + '.xlsx';
+    //   const filePath = fs.dirs.DownloadDir + filename;
+    //   // const filePath = `${RNFS.DocumentDirectoryPath}/data.xlsx`;
+      
+    //   fs.writeFile(filePath, wbout, 'base64')
+    //     .then(() => {
+    //         RNFetchBlob.android.addCompleteDownload({
+    //             title: 'TestDataExcel',
+    //             useDownloadManager: true,
+    //             showNotification: true,
+    //             notification: true,
+    //             path: filePath,
+    //             mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    //             description: 'ExcelFile',
+    //           });
+    //     })
+    //     .catch((err) => {console.log('ERR: ', err)})      
+    // }
+   
 
     return (
       <>
@@ -302,6 +517,9 @@ export default SimulationInfo = ({route, navigation}) => {
                           <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={handleStartSimulation}>
                               <Text style={contentCardStyles.SubmitButtonText}>MULAI SIMULASI</Text>
                           </TouchableOpacity>
+                          {/* <TouchableOpacity style={contentCardStyles.SubmitButton} onPress={testExportIds}>
+                              <Text style={contentCardStyles.SubmitButtonText}>Check Download</Text>
+                          </TouchableOpacity> */}
                         </>
                       ) : (
                         <>

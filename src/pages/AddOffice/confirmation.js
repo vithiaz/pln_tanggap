@@ -1,51 +1,69 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Image, PermissionsAndroid, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { child, onValue, push, ref, set } from 'firebase/database';
 import { auth, db, firebaseConfig } from '../../config/firebase';
 
 import QRCode from 'react-native-qrcode-svg';
+import Share from 'react-native-share'
+import RNFetchBlob from 'rn-fetch-blob'
 
 import PLN_logo from '../../assets/image/Logo_PLN_single.png';
 import backIcon from '../../assets/icon/back.png'
 import OfficeIcon from '../../assets/icon/office.png'
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { deleteApp, initializeApp } from 'firebase/app';
+import Loader from '../../components/loader';
 
 export default function AddOfficeConfirmation({ route, navigation }) {
     const addOfficeInfo = route.params;
-  
+
+    const [isLoading, setIsLoading] = useState(false)
     return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
-        <SafeAreaView style={{ height: '100%', }}>
-            <View style={styles.container}>
-                <View style={styles.topNavigationWrapper}>
-                    <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
-                    <Image source={backIcon} style={styles.buttonIcon} />
-                    </TouchableOpacity>
+    <>
+        {isLoading ? (<Loader/>) : null}
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
+            <SafeAreaView style={{ height: '100%', }}>
+                <View style={styles.container}>
+                    <View style={styles.topNavigationWrapper}>
+                        <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
+                        <Image source={backIcon} style={styles.buttonIcon} />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.pageTitleWrapper}>
+                        <Text style={styles.appTitleText}>Tambah Kantor</Text>
+                        <TouchableOpacity style={styles.pageIconContainer} >
+                            <Image source={OfficeIcon} style={styles.pageIcon}/>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-                <View style={styles.pageTitleWrapper}>
-                    <Text style={styles.appTitleText}>Tambah Kantor</Text>
-                    <TouchableOpacity style={styles.pageIconContainer} >
-                        <Image source={OfficeIcon} style={styles.pageIcon}/>
-                    </TouchableOpacity>
-                </View>
-            </View>
-            <PageContentCard
-                navigation={navigation}
-                addOfficeInfo={addOfficeInfo}
-                // officeUID={officeUID}
-                // deviceToken={deviceToken}
-                />
-        </SafeAreaView>
-    </ScrollView>
+                <PageContentCard
+                    navigation={navigation}
+                    addOfficeInfo={addOfficeInfo}
+                    setIsLoading={setIsLoading}
+                    // officeUID={officeUID}
+                    // deviceToken={deviceToken}
+                    />
+            </SafeAreaView>
+        </ScrollView>
+    </>
   )
 }
 
-const PageContentCard = ({ navigation, addOfficeInfo }) => {
+const PageContentCard = ({ navigation, addOfficeInfo, setIsLoading }) => {
     const [qrAttemptKey, setQrAttemptKey] = useState('')
     const [QRImage, setQRImage] = useState('')
+    
 
     const [isStoreSecure, setIsStoreSecure] = useState(true)
+
+    function createSlug(string) {
+        const slug = string
+          .toLowerCase()
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9-]/g, '');
+      
+        return slug;
+      }
     
     useState(() => {
         setQrAttemptKey(push(child(ref(db), 'offices')).key)
@@ -134,8 +152,67 @@ const PageContentCard = ({ navigation, addOfficeInfo }) => {
     }
 
     const handleQrShare = () => {
-        // 
+        QRImage.toDataURL((data) => {
+            const shareImageBase64 = {
+                title: addOfficeInfo.office + " -QR",
+                message: "QR titik kumpul " + addOfficeInfo.office,
+                url: `data:image/jpeg;base64,${data}`
+            };
+            setQRImage(String(shareImageBase64.url));
+            Share.open(shareImageBase64);
+        })
     }
+
+    const handleQrDownload = () => {
+        setIsLoading(true)
+
+        QRImage.toDataURL(async(data) => {
+            const shareImageBase64 = {
+                title: addOfficeInfo.office + " -QR",
+                message: "QR titik kumpul " + addOfficeInfo.office,
+                url: `data:image/jpeg;base64,${data}`
+            };
+            setQRImage(String(shareImageBase64.url))
+
+            if (Platform.OS === 'ios') {
+                saveImage(String(shareImageBase64.url));
+            } else {
+                try {
+                    saveImage(String(shareImageBase64.url));
+                } catch (err) {
+                    console.log(err)
+                    setIsLoading(false)
+                }
+            }
+        });
+
+    }
+
+    const saveImage = (qr) => {
+        setIsLoading(false)
+
+        qr = qr.split('data:image/jpeg;base64,')[1]
+        
+        let date = new Date();
+        const { fs } = RNFetchBlob;
+        let filename = '/QR_'+ createSlug(addOfficeInfo.office) +'_' + Math.floor(date.getTime() + date.getSeconds() / 2) + '.jpeg';
+        let PictureDir = fs.dirs.DownloadDir + filename;
+
+        fs.writeFile(PictureDir, qr, 'base64')
+        .then(() => {
+            RNFetchBlob.android.addCompleteDownload({
+                title: addOfficeInfo.office + ' QR Code',
+                useDownloadManager: true,
+                showNotification: true,
+                notification: true,
+                path: PictureDir,
+                mime: 'image/jpeg',
+                description: 'Image',
+            });
+        })
+        .catch((err) => {console.log('ERR: ', err)})
+    }
+
     
     return (
         <View style={contentCardStyles.contentCard}>
@@ -198,7 +275,7 @@ const PageContentCard = ({ navigation, addOfficeInfo }) => {
                                     />
                                 <Text style={contentCardStyles.qrDescription}>Download atau bagikan QR ini sebelum menambahkan kantor</Text>
                                 <View style={contentCardStyles.qrContainerButtonWrapper}>
-                                    <TouchableOpacity style={[contentCardStyles.AbortButton, {width: '70%'}]}>
+                                    <TouchableOpacity style={[contentCardStyles.AbortButton, {width: '70%'}]} onPress={handleQrDownload}>
                                         <Text style={contentCardStyles.AbortButtonText}>Download QR</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={[contentCardStyles.AbortButton, {width: '25%'}]} onPress={handleQrShare}>

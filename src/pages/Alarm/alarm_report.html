@@ -1,0 +1,109 @@
+<html>
+<head>
+    <style>
+        * {
+            margin: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        body {
+            padding: 20px 40px;
+        }
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .content-head {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .content-head .row-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            column-gap: 10px;
+            row-gap: 5px;
+        }
+        .content-head .row-wrapper .row-title {
+            flex-basis: 220px;
+        }
+        .content-head .row-wrapper .row-content {
+            flex-grow: 1;
+            font-weight: 600;
+        }
+        .content-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px 0;
+        }
+        .content-body .content-title {
+            font-weight: 600;
+            padding: 10px 0;
+        }
+        .content-body table {
+            gap: 0;
+        }
+        .content-body table thead {
+            background-color: #eaeaea;
+            height: 40px;
+        }
+        .content-body table tbody tr td{
+            padding: 10px 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="page-title">Alarm Report</h1>
+    <div class="content-head">
+        <div class="row-wrapper">
+            <span class="row-title">Tipe Alarm</span>
+            <span class="row-content">ALARM DARURAT</span>
+        </div>
+        <div class="row-wrapper">
+            <span class="row-title">Lokasi Alarm</span>
+            <span class="row-content">PLN Kawangkoan</span>
+        </div>
+        <div class="row-wrapper">
+            <span class="row-title">Waktu diaktifkan</span>
+            <span class="row-content">05/21/2023, 14:55:30</span>
+        </div>
+    </div>
+    <div class="content-body">
+        <span class="content-title">Laporan Evakuasi</span>
+        <table cellspacing="0" border=1 frame=hsides rules=rows>
+            <thead>
+                <tr>
+                    <th>Nama</th>
+                    <th>Telepon</th>
+                    <th>Pekerjaan</th>
+                    <th>Jabatan</th>
+                    <th>Waktu Evakuasi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>John Doe</td>
+                    <td>08554565478</td>
+                    <td>Programmer</td>
+                    <td>Senior Programmer</td>
+                    <td>05/21/2023, 14:55:30</td>
+                </tr>
+                <tr>
+                    <td>Jane Doe</td>
+                    <td>08221354800</td>
+                    <td>Programmer</td>
+                    <td>Junior Programmer</td>
+                    <td>05/21/2023, 14:55:30</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

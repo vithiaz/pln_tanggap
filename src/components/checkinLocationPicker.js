@@ -20,7 +20,15 @@ const CheckinLocationPicker = ({ user, items, onSelect }) => {
   const [showForm, setShowForm] = useState(false);
   const formAnimatedHeight = new Animated.Value(0);
   const [nameInput, setNameInput] = useState('');
+  const [phoneInput, setphoneInput] = useState('');
+  const [jobInput, setJobInput] = useState('');
+  const [positionInput, setPositionInput] = useState('');
 
+  const handleNumberChange = (value, setfunc) => {
+    const cleanedValue = value.replace(/[^0-9]/g, '');
+    setfunc(cleanedValue);
+  }
+  
   const togglePicker = () => {
       setShowPicker(!showPicker);
   };
@@ -32,7 +40,7 @@ const CheckinLocationPicker = ({ user, items, onSelect }) => {
   useEffect(() => {
     if (showForm) {
        Animated.timing(formAnimatedHeight, {
-          toValue: 50,
+          toValue: 220,
           duration: 200,
           useNativeDriver: false,
         }).start();
@@ -75,7 +83,12 @@ const CheckinLocationPicker = ({ user, items, onSelect }) => {
                 keyExtractor={(item) => item.key}
                 renderItem={({ item }) => (
                   <TouchableWithoutFeedback onPress={() => {
-                    onSelect(item, nameInput);
+                    onSelect(item, {
+                      nameInput: nameInput,
+                      phoneInput: phoneInput,
+                      jobInput: jobInput,
+                      positionInput: positionInput,
+                    });
                     togglePicker();
                     }}>
                     <View style={styles.pickerItem}>
@@ -98,28 +111,45 @@ const CheckinLocationPicker = ({ user, items, onSelect }) => {
       <Animated.View
         // style={checkoutInfoStyles.formWrapper}
         style={{ 
-          flexDirection: 'row',
+          width: '100%',
+          flexDirection: 'column',
           gap: 10,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#f4f7ff',
-          paddingHorizontal: 10,
-          borderRadius: 18,
           overflow: 'hidden',
           height: formAnimatedHeight
-          // height: 20
          }}
         >
-          {/* <TextInput onLayout={handleFormToggleLayout} style={checkoutInfoStyles.formInputText} placeholder='Nama Lengkap...'></TextInput> */}
           <TextInput
-            style={checkoutInfoStyles.formInputText}
+            style={checkoutInfoStyles.animatedFormInput}
             placeholder='Nama Lengkap...'
             onChangeText={(text) => setNameInput(text)}
             ></TextInput>
-          <TouchableOpacity style={checkoutInfoStyles.formBtn} onPress={togglePicker}>
-              {/* <View style={checkoutInfoStyles.btnBg} /> */}
-              <Image source={CheckInOutIcon} style={checkoutInfoStyles.formBtnIcon} />
-          </TouchableOpacity>
+          <TextInput
+            style={checkoutInfoStyles.animatedFormInput}
+            placeholder='No HP...'
+            keyboardType="numeric"
+            value={phoneInput}
+            onChangeText={(text) => handleNumberChange(text, setphoneInput)}
+            ></TextInput>
+          <TextInput
+            style={checkoutInfoStyles.animatedFormInput}
+            placeholder='Pekerjaan...'
+            onChangeText={(text) => setJobInput(text)}
+            ></TextInput>
+          <View style={{ 
+            width: '100%',
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            gap: 10,
+          }}>
+             <TextInput
+               style={[checkoutInfoStyles.animatedFormInput, {flexGrow: 1}]}
+               placeholder='Jabatan...'
+               onChangeText={(text) => setPositionInput(text)}
+               ></TextInput>
+              <TouchableOpacity style={checkoutInfoStyles.formBtn} onPress={togglePicker}>
+                  <Image source={CheckInOutIcon} style={checkoutInfoStyles.formBtnIcon} />
+              </TouchableOpacity>
+          </View>
       </Animated.View>
 
     </View>
@@ -304,7 +334,13 @@ const checkoutInfoStyles = StyleSheet.create({
     formBtnIcon: {
       width: 20,
       height: 20,
+    },
+    animatedFormInput: {
+      backgroundColor: '#f4f7ff',
+      paddingHorizontal: 20,
+      borderRadius: 18,
     }
+
   
   })
   
