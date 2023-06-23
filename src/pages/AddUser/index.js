@@ -51,7 +51,14 @@ const PageContentCard = (props) => {
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
     const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [position, setPosition] = useState('');
     const [password, setPassword] = useState('');
+
+    const handleNumberChange = (value, setfunc) => {
+      const cleanedValue = value.replace(/[^0-9]/g, '');
+      setfunc(cleanedValue);
+    }
 
     const storeUser = () => {
 
@@ -67,6 +74,8 @@ const PageContentCard = (props) => {
                         name: name,
                         username: username,
                         office_UID: props.officeUID,
+                        phone: phone,
+                        position: position,
                         user_type: 'guest',
                         device_token : props.deviceToken
                     });
@@ -118,6 +127,14 @@ const PageContentCard = (props) => {
                     <View style={contentCardStyles.formInput}>
                         <Text style={contentCardStyles.formInputLabel}>Nama</Text>
                         <TextInput style={contentCardStyles.formInputText} placeholder='Nama Lengkap' value={name} onChangeText={(text) => setName(text)}></TextInput>
+                    </View>
+                    <View style={contentCardStyles.formInput}>
+                        <Text style={contentCardStyles.formInputLabel}>Telepon</Text>
+                        <TextInput style={contentCardStyles.formInputText} placeholder='Telepon / no.HP' value={phone} keyboardType='numeric' onChangeText={(text) => handleNumberChange(text, setPhone)}></TextInput>
+                    </View>
+                    <View style={contentCardStyles.formInput}>
+                        <Text style={contentCardStyles.formInputLabel}>Posisi</Text>
+                        <TextInput style={contentCardStyles.formInputText} placeholder='Posisi' value={position} onChangeText={(text) => setPosition(text)}></TextInput>
                     </View>
                     <View style={contentCardStyles.formInput}>
                         <Text style={contentCardStyles.formInputLabel}>Password</Text>

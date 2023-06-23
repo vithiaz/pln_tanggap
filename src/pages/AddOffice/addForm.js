@@ -38,6 +38,7 @@ export default function AddOfficeForm({ navigation }) {
 
 const PageContentCard = ({ navigation }) => {
     const [office, setOffice] = useState('');
+    const [pin, setPin] = useState('')
     const [policeNum, setPoliceNum] = useState('');
     const [hospitalNum, setHospitalNum] = useState('');
     const [firemanNum, setFiremanNum] = useState('');
@@ -72,9 +73,10 @@ const PageContentCard = ({ navigation }) => {
   
 
     const confirmForm = () => {
-        if (email !== '' && office !== '' && password !== '') {
+        if (email !== '' && pin !== '' && office !== '' && password !== '') {
           data = {
             office: capitalizeString(office),
+            pin: pin,
             policeNum: policeNum,
             hospitalNum: hospitalNum,
             firemanNum: firemanNum,
@@ -103,6 +105,10 @@ const PageContentCard = ({ navigation }) => {
                     <View style={contentCardStyles.formInput}>
                         <Text style={contentCardStyles.formInputLabel}>Kantor</Text>
                         <TextInput style={contentCardStyles.formInputText} placeholder='Nama Kantor' value={office} onChangeText={(text) => setOffice(text)}></TextInput>
+                    </View>
+                    <View style={contentCardStyles.formInput}>
+                        <Text style={contentCardStyles.formInputLabel}>PIN Alarm</Text>
+                        <TextInput style={contentCardStyles.formInputText} placeholder='Pin Alarm' value={pin} keyboardType="numeric" onChangeText={(text) => handleNumberChange(text, setPin)}></TextInput>
                     </View>
                     <View style={contentCardStyles.formInput}>
                         <Text style={contentCardStyles.formInputLabel}>Kontak Darurat</Text>

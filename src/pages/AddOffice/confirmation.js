@@ -53,7 +53,6 @@ const PageContentCard = ({ navigation, addOfficeInfo, setIsLoading }) => {
     const [qrAttemptKey, setQrAttemptKey] = useState('')
     const [QRImage, setQRImage] = useState('')
     
-
     const [isStoreSecure, setIsStoreSecure] = useState(true)
 
     function createSlug(string) {
@@ -74,6 +73,7 @@ const PageContentCard = ({ navigation, addOfficeInfo, setIsLoading }) => {
             try {
                 set(ref(db, 'offices/' + qrAttemptKey), {
                     name: addOfficeInfo.office,
+                    pin: addOfficeInfo.pin,
                     safe_point_id: qrAttemptKey,
                     policeNum: addOfficeInfo.policeNum,
                     hospitalNum: addOfficeInfo.hospitalNum,
@@ -224,6 +224,10 @@ const PageContentCard = ({ navigation, addOfficeInfo, setIsLoading }) => {
                         <View style={contentCardStyles.rowWrapper}>
                             <Text style={contentCardStyles.rowWrapperHead}>Nama</Text>
                             <Text style={contentCardStyles.rowWrapperTail}>{addOfficeInfo.office}</Text>
+                        </View>
+                        <View style={contentCardStyles.rowWrapper}>
+                            <Text style={contentCardStyles.rowWrapperHead}>PIN Alarm</Text>
+                            <Text style={contentCardStyles.rowWrapperTail}>{addOfficeInfo.pin}</Text>
                         </View>
                         {addOfficeInfo.policeNum && (
                             <View style={contentCardStyles.rowWrapper}>

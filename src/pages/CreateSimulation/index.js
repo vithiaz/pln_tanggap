@@ -154,7 +154,7 @@ const PageContentCard = ({ navigation }) => {
               {/* Input Date Picker */}
               <View style={contentCardStyles.datetimeForm}>
                   <DateInputPicker selectedDate={inputDate} onSelect={handleDateChange} />
-                  <TimeInputPicker onTimeChange={handleTimeChange}  />
+                  <TimeInputPicker onTimeChange={handleTimeChange} />
               </View>
               
               {/* Buttons */}

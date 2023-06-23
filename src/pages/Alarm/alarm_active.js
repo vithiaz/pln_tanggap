@@ -52,10 +52,15 @@ export default function AlarmActive({ route, navigation }) {
   const [count, setCount] = useState(true);
   const [intervalId, setIntervalId] = useState(null);
   const [timeCount, setTimeCount] = useState('00:00:00');
-  const [checkinName, setCheckinName] = useState('');
   const [alarmMembers, setAlarmMembers] = useState([]);
   const [stopVibration, setStopVibration] = useState(false);
   const pattern = [100, 2000];
+
+  // Checkin Credentials
+  const [checkinName, setCheckinName] = useState('');
+  const [checkinPhone, setCheckinPhone] = useState('');
+  const [checkinJob, setCheckinJob] = useState('');
+  const [checkinPos, setCheckinPos] = useState('');
 
   const [memberGroup, setMemberGroup] = useState('');
 
@@ -67,7 +72,16 @@ export default function AlarmActive({ route, navigation }) {
     try {
       const value = JSON.parse(await AsyncStorage.getItem('@isCheckin'))
       if (value) {
-        setCheckinName(value.checkinName);
+        setCheckinName(value.checkinName)
+        if (value.checkinPhone) {
+          setCheckinPhone(value.checkinPhone)
+        }
+        if (value.checkinJob) {
+          setCheckinJob(value.checkinJob)
+        }
+        if (value.checkinPos) {
+          setCheckinPos(value.checkinPos)
+        }
       }
     } catch(e) {
       console.log(e);
@@ -214,7 +228,6 @@ export default function AlarmActive({ route, navigation }) {
     setScanned(true);
     stopVibrationLoop();
   }
-
   const handleScan = (e) => {
     console.log('Scanned data: ', e.data);
     
@@ -227,7 +240,7 @@ export default function AlarmActive({ route, navigation }) {
           update(simulationRef, {
             device_token: myToken,
             secure_state: true,
-            secure_time: getCurrentTime()
+            secure_time: getCurrentTime(),
           });
   
           AsyncStorage.removeItem('@activeAlarm');
@@ -239,6 +252,7 @@ export default function AlarmActive({ route, navigation }) {
               params: {
                 alarmId : alarmId,
                 simulation: simulation,
+                isHost: canStopAlarm,
               }
             }]
           });
@@ -256,7 +270,10 @@ export default function AlarmActive({ route, navigation }) {
             device_token: myToken,
             secure_state: true,
             secure_time: getCurrentTime(),
-            checkin_name: checkinName
+            checkin_name: checkinName,
+            checkin_phone: checkinPhone,
+            checkin_job: checkinJob,
+            checkin_pos: checkinPos,
           });
 
           AsyncStorage.removeItem('@activeAlarm');
@@ -268,6 +285,7 @@ export default function AlarmActive({ route, navigation }) {
               params: {
                 alarmId : alarmId,
                 simulation: simulation,
+                isHost: canStopAlarm,
               }
             }]
           });
@@ -307,15 +325,14 @@ export default function AlarmActive({ route, navigation }) {
   }, [])
   
   // Listen to alarms table / simulations table
-  useEffect(() => {
-    console.log('Table ID : ', alarmId);
-    console.log('Is simulation: : ', simulation);
+  useEffect(() => {  
+    handleCanStopAlarm()
     try {
       if (simulation == true) {
         onValue(ref(db, '/simulations/' + alarmId), (snap) => {
+          console.log('canStopAlarm: ', canStopAlarm);
           setAlarmData([]);
           const data = snap.val();
-          console.log('simulations data: ', data);
           if (data !== null) {
             setAlarmData(data);
             setInfoMessageHeader(data.name)
@@ -328,6 +345,7 @@ export default function AlarmActive({ route, navigation }) {
                   params: {
                     alarmId : alarmId,
                     simulation: simulation,
+                    isHost: canStopAlarm,
                   }
                 }]
               });
@@ -359,6 +377,7 @@ export default function AlarmActive({ route, navigation }) {
                   params: {
                     alarmId : alarmId,
                     simulation: simulation,
+                    isHost: canStopAlarm,
                   }
                 }]
               });
@@ -514,25 +533,34 @@ export default function AlarmActive({ route, navigation }) {
   // }, [])
   
   // Handle who can end the alarm
-  useEffect(() => {
-    console.log('Alarm Data : ', alarmData);
-    console.log('token : ', myToken);
-
+  const handleCanStopAlarm = () => {
     if (alarmData) {
       if (simulation != true) {
         if (alarmData.trigerred_token === myToken) {
-          setCanStopAlarm(true);
+          setCanStopAlarm(true)
+          console.log("Setting can Stop alarm to True", canStopAlarm)
         }
       }
       if (hostIds && hostIds.includes(myToken)) {
-        setCanStopAlarm(true);
+        setCanStopAlarm(true)
+        console.log("Setting can Stop alarm to True", canStopAlarm)
       }
     }
-  }, [canStopAlarm, alarmData, hostIds])
+  }
+
+  useEffect(() => {
+    console.log('Alarm Data : ', alarmData);
+    console.log('token : ', myToken);
+    console.log('hostIds : ', hostIds);
+    
+    handleCanStopAlarm()
+  }, [alarmData, hostIds, dataMembers])
 
   // Handle Turning off the Alarm
   const handleTurnOffAlarm = () => {
-    stopCountdown();
+    stopCountdown()
+    console.log("canStopAlarm: ", canStopAlarm)
+    handleCanStopAlarm()
     if (simulation) {
       const simulationRef = ref(db, 'simulations/' + alarmId);
       update(simulationRef, {

@@ -5,9 +5,11 @@ import {
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
-  Image
+  Image,
+  Alert
 } from 'react-native'
-import RNRestart from 'react-native-restart'; 
+import RNRestart from 'react-native-restart';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
 
 import React, { useEffect, useState } from 'react'
 import BackIcon from '../../assets/icon/back.png'
@@ -22,6 +24,9 @@ export default function AlarmEnded({ navigation, route }) {
   const infoMessageHeader = 'PERHATIAN ...';
   const [timeCount, setTimeCount] = useState('00:00')
   const [alarmMembers, setAlarmMembers] = useState([])
+  const [officeName, setOfficeName] = useState('')
+  const [triggeredTime, setTriggeredTime] = useState('')
+  
 
   const appendAlarmMember = (newData) => {
     setAlarmMembers((prevData) => [...prevData, newData]);
@@ -29,6 +34,11 @@ export default function AlarmEnded({ navigation, route }) {
   
   const alarmId = route.params.alarmId;
   const isSimulation = route.params.simulation;
+  const isHost = route.params.isHost;
+
+  useEffect(() => {
+    console.log("isHost: ", isHost)
+  }, [isHost])
 
   const getCounter = async () => {
     try {
@@ -49,6 +59,25 @@ export default function AlarmEnded({ navigation, route }) {
   }
 
   // Listen to alarms table / simulations table
+  useEffect(() => {
+    if (isSimulation == true) {
+      onValue(ref(db, '/simulations/' + alarmId), (snap) => {
+        console.log('simulations name ', snap.val().name)
+        console.log('triggeredTime ', snap.val().triggeredTime)
+        setOfficeName(snap.val().name)
+        setTriggeredTime(snap.val().triggeredTime)
+      }, { onlyOnce: true })
+    } else {
+      onValue(ref(db, '/alarms/' + alarmId + '/'), (snap) => {
+        if (snap.val()) {
+          setOfficeName(snap.val().location)
+          setTriggeredTime(snap.val().triggeredTime)
+        }
+      }, { onlyOnce: true })
+    }
+  }, [alarmId])
+
+  // Listen to alarms table members / simulations table members
   useEffect(() => {
     console.log('Table ID : ', alarmId);
     console.log('Is simulation: : ', isSimulation);
@@ -88,6 +117,167 @@ export default function AlarmEnded({ navigation, route }) {
 
     return formattedTime;
   };
+
+
+  const downloadReport = async () => {
+    const alarmMembersStr = JSON.stringify(alarmMembers)
+    const alarmMembersData = JSON.parse(alarmMembersStr)
+
+    try {
+      const html = `
+      <html>
+      <head>
+          <style>
+              * {
+                  margin: 0;
+                  box-sizing: border-box;
+                  font-family: Arial, Helvetica, sans-serif;
+              }
+              body {
+                  padding: 20px 40px;
+              }
+              .page-title {
+                  font-size: 1.8rem;
+                  font-weight: 600;
+                  letter-spacing: 2px;
+                  margin-bottom: 20px;
+              }
+              .content-head {
+                  width: 100%;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+              }
+              .content-head .row-wrapper {
+                  width: 100%;
+                  display: flex;
+                  flex-direction: row;
+                  flex-wrap: wrap;
+                  column-gap: 10px;
+                  row-gap: 5px;
+              }
+              .content-head .row-wrapper .row-title {
+                  flex-basis: 220px;
+              }
+              .content-head .row-wrapper .row-content {
+                  flex-grow: 1;
+                  font-weight: 600;
+              }
+              .content-body {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                  padding: 10px 0;
+              }
+              .content-body .content-title {
+                  font-weight: 600;
+                  padding: 10px 0;
+              }
+              .content-body table {
+                  gap: 0;
+              }
+              .content-body table thead {
+                  background-color: #eaeaea;
+                  height: 40px;
+              }
+              .content-body table tbody tr td{
+                  padding: 10px 5px;
+                  text-align: center;
+              }
+          </style>
+      </head>
+      <body>
+          <h1 class="page-title">Alarm Report</h1>
+          <div class="content-head">
+              <div class="row-wrapper">
+                  <span class="row-title">Tipe Alarm</span>
+                  <span class="row-content">${isSimulation ? ("SIMULASI ALARM DARURAT") : ("ALARM DARURAT")}</span>
+              </div>
+              ${isSimulation ? (`
+                <div class="row-wrapper">
+                    <span class="row-title">Nama Simulasi</span>
+                    <span class="row-content">${officeName}</span>
+                </div>
+              `) : (`
+                <div class="row-wrapper">
+                    <span class="row-title">Lokasi Alarm</span>
+                    <span class="row-content">${officeName}</span>
+                </div>
+              `)}
+              <div class="row-wrapper">
+                  <span class="row-title">Waktu diaktifkan</span>
+                  <span class="row-content">${triggeredTime}</span>
+              </div>
+          </div>
+          <div class="content-body">
+              <span class="content-title">Laporan Evakuasi</span>
+              <table cellspacing="0" border=1 frame=hsides rules=rows>
+                  <thead>
+                    ${isSimulation ? (`
+                      <tr>
+                          <th>Nama</th>
+                          <th>Grup</th>
+                          <th>Waktu Evakuasi</th>
+                      </tr>                    
+                    `) : (`
+                      <tr>
+                          <th>Nama</th>
+                          <th>Telepon</th>
+                          <th>Pekerjaan</th>
+                          <th>Jabatan</th>
+                          <th>Waktu Evakuasi</th>
+                      </tr>                    
+                    `)}
+                  </thead>
+                  ${isSimulation ? (`
+                    <tbody>
+                      ${alarmMembersData.map((item) => `
+                        <tr>
+                          <td>${item.checkin_name ? `${item.checkin_name}` : ``}</td>
+                          <td>${item.group ? `${item.group}` : ``}</td>
+                          <td>${item.secure_time ? `${item.secure_time}` : ``}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  `) : (`
+                    <tbody>
+                      ${alarmMembersData.map((item) => `
+                        <tr>
+                          <td>${item.checkin_name ? `${item.checkin_name}` : ``}</td>
+                          <td>${item.checkin_phone ? `${item.checkin_phone}` : ``}</td>
+                          <td>${item.checkin_job ? `${item.checkin_job}` : ``}</td>
+                          <td>${item.checkin_pos ? `${item.checkin_pos}` : ``}</td>
+                          <td>${item.secure_time ? `${item.secure_time}` : ``}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  `)}
+              </table>
+          </div>
+      </body>
+      </html>
+      `;
+      
+      let date = new Date();
+      const options = {
+        html,
+        fileName: 'data_' + Math.floor(date.getTime() + date.getSeconds() / 2),
+        directory: 'PLNTanggapDocs',
+      };  
+      const file = await RNHTMLtoPDF.convert(options);
+      Alert.alert(
+        'Success',
+        `PDF disimpan di ${file.filePath}`,
+        [
+          {text: 'OK', onPress: () => console.log('OK Pressed')},
+        ],
+        { cancelable: false }
+      )
+    }
+    catch (e) {
+      console.log(e)
+    }
+  }
   
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
@@ -143,11 +333,13 @@ export default function AlarmEnded({ navigation, route }) {
           </View>
 
           {/* Page Footer */}
-          {/* <View style={styles.pageFooterWrapper}>
-            <TouchableOpacity style={styles.footerButton}>
-              <Text style={styles.footerButtonText}>Saya sudah di titik evakuasi</Text>
-            </TouchableOpacity>
-          </View> */}
+          {/* {isHost && ( */}
+            <View style={styles.pageFooterWrapper}>
+              <TouchableOpacity style={styles.footerButton} onPress={downloadReport}>
+                <Text style={styles.footerButtonText}>Download Laporan</Text>
+              </TouchableOpacity>
+            </View>
+          {/* )} */}
         </View>
       </SafeAreaView>
     </ScrollView>
@@ -315,7 +507,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footerButton: {
-    backgroundColor: '#FFF200',
+    backgroundColor: '#00AEEF',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 12,

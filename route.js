@@ -32,6 +32,7 @@ import AddUser from './src/pages/AddUser/index.js';
 import BackgroundTimer from 'react-native-background-timer';
 import BackgroundFetch from 'react-native-background-fetch';
 import AddOffice from './src/pages/AddOffice/index.js';
+import AparPage from './src/pages/APAR/index.js';
 
 messaging().requestPermission();
 
@@ -156,6 +157,10 @@ const HomeStack = (props) => {
           <Stack.Screen
             name="AddOffice"
             component={AddOffice}
+            />
+          <Stack.Screen
+            name="APAR"
+            component={AparPage}
             />
           <Stack.Screen
             name="SimulationInfo"

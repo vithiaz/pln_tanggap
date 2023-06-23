@@ -38,6 +38,10 @@ import timeIcon from '../../assets/icon/time.png';
 import LogoutIcon from '../../assets/icon/check_in_out.png';
 import SimulationIcon from '../../assets/icon/simulation.png';
 import UsersIcon from '../../assets/icon/users.png';
+import PoliceStIcon from '../../assets/icon/police_station.png';
+import FiremanIcon from '../../assets/icon/fireman.png';
+import MedicIcon from '../../assets/icon/medic.png';
+import FireToolsIcon from '../../assets/icon/fire_tools.png';
 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import firebase from 'firebase/app';
@@ -49,7 +53,6 @@ import { getDatabase, ref, onValue, get, child, limitToLast, equalTo, push, set,
 import PushNotification, { PushNotificationHandler } from 'react-native-push-notification';
 import NotifService from '../../../notifService.js';
 import messaging from '@react-native-firebase/messaging'
-// import messaging from '@react-native-firebase/messaging';
 import { Linking } from 'react-native';
 
 import { Vibration } from 'react-native';
@@ -58,6 +61,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CheckinLocationPicker from '../../components/checkinLocationPicker';
 import { addDoc, updateDoc } from 'firebase/firestore';
 import { convertAbsoluteToRem } from 'native-base/lib/typescript/theme/tools';
+import call from 'react-native-phone-call'
+import { useSafeArea } from 'native-base';
+
 
 
 const Home = ({ navigation }) => {
@@ -160,7 +166,6 @@ const Home = ({ navigation }) => {
   useEffect(() => {
     getIsCheckin();
     getDeviceToken();
-    // console.log('dev token: ', deviceToken)
   }, [deviceToken])
 
   // Read User Info
@@ -168,39 +173,25 @@ const Home = ({ navigation }) => {
     if (currentUser != null) {
       onValue(ref(db, '/users/' + currentUser.uid), (snapshot) => {
         setUserUID(currentUser.uid)
-        // snapshot.forEach((childSnapshot) => {
             setUserInfo(snapshot.val())
             setUsername(snapshot.val().username)
             setUserType(snapshot.val().user_type)
             setCheckinName(snapshot.val().username)
             
             if (snapshot.hasChild('checkin_id')) {
-              setCheckinKey(snapshot.val().office_UID)
+              // setCheckinKey(snapshot.val().checkin_id)
               setIsCheckin(true)
               setCheckinId(snapshot.val().checkin_id)
               setCheckinLocation(snapshot.val().checkin_location)
             } else {
               setIsCheckin(false)
               setCheckinId(false)
-              // setCheckinName(false)
             }
-        // });
       }, {
         onlyOnce: true
       });
     }
   }
-
-  // Listening if user has checked in
-  // useEffect(() => {
-  //   if (isCheckin == true) {
-  //     const safetyInductionRedirect = () => {
-  //       navigation.navigate('SafetyInduction');
-  //     }
-      
-  //     setTimeout(safetyInductionRedirect, 1000);
-  //   }
-  // }, [isCheckin])
 
   // Handling User login credential
   useEffect(() => {
@@ -441,13 +432,49 @@ const Navbar = (props) => {
 }
 
 const CheckoutInfo = (props) => {
-  const [checkinDataInfo, setCheckinData] = useState(false);
-  const [office, setOffice] = useState([]);
-  
-  // useEffect(() => {
-  //   console.log('tracking ...: ', props.checkinKey);
-  // }, [props.checkinKey]);
-  
+  const [checkinDataInfo, setCheckinData] = useState(false)
+  const [office, setOffice] = useState([])
+  const [policeNum, setPoliceNum] = useState('')
+  const [hospitalNum, setHospitalNum] = useState('')
+  const [firemanNum, setFiremanNum] = useState('')
+
+  // Listen to Checkin table
+  useEffect(() => {
+    console.log("Checkin locaiton id registered as ", props.checkinKey)
+
+    onValue(ref(db, '/offices/' + props.checkinKey), (snap) => {
+      if (snap.val()) {
+        if (snap.val().policeNum) {
+          setPoliceNum(snap.val().policeNum)
+        } else {
+          setPoliceNum('')
+        }
+
+        if (snap.val().hospitalNum) {
+          setHospitalNum(snap.val().hospitalNum)
+        } else {
+          setHospitalNum('')
+        }
+
+        if (snap.val().firemanNum) {
+          setFiremanNum(snap.val().firemanNum)
+        } else {
+          setFiremanNum('')
+        }
+      }
+      console.log('Checkin Location Data ', snap.val())
+    })
+  }, [props.checkinKey])
+
+  const handleCall = (callNumber) => {
+    const args = {
+      number: callNumber,
+      prompt: false,
+      skipCanOpen: true
+    }
+    call(args).catch(console.error)    
+  }
+    
   useEffect( () => {     
     onValue(ref(db, '/offices/'), (snap) => {
       setOffice([])
@@ -461,6 +488,7 @@ const CheckoutInfo = (props) => {
   }, [])
 
   const officeSelect = Object.entries(office).map(([key, value]) => ({ key: key, label: value.name }));
+
 
   function getCurrentTime() {
     const now = new Date();
@@ -479,6 +507,7 @@ const CheckoutInfo = (props) => {
   // Handle Checkin
   const handleSelectedLocation = (checkinLocation, checkinData) =>
   {
+
     // console.log('checkinLocation :', checkinLocation);
     // console.log('nameInput :', nameInput);
     // console.log('current user login : ', props.userInfo);
@@ -514,6 +543,18 @@ const CheckoutInfo = (props) => {
           checkin_name: props.userInfo.name,
           checkin_location: checkinLocation.label
         })
+
+      // Marker
+      AsyncStorage.setItem('@isCheckin', JSON.stringify({
+        checkinId: props.deviceToken,
+        checkinName: props.userInfo.name,
+        checkinPhone: props.userInfo.phone,
+        checkinJob: "member",
+        checkinPos: props.userInfo.position,
+        checkinLocation: checkinLocation.label,
+        checkinKey: checkinLocation.key
+      }));
+      
       } catch(e) {
         console.log('Updating user to checkin failed: ', e)
       }
@@ -541,6 +582,9 @@ const CheckoutInfo = (props) => {
         AsyncStorage.setItem('@isCheckin', JSON.stringify({
           checkinId: props.deviceToken,
           checkinName: checkinData.nameInput,
+          checkinPhone: checkinData.phoneInput,
+          checkinJob: checkinData.jobInput,
+          checkinPos: checkinData.positionInput,
           checkinLocation: checkinLocation.label,
           checkinKey: checkinLocation.key
         }));
@@ -620,20 +664,41 @@ const CheckoutInfo = (props) => {
         <CheckinLocationPicker user={props.user} items={officeSelect} onSelect={handleSelectedLocation} />
       )}
       {props.checkin ? (
-        <TouchableOpacity style={checkoutInfoStyles.locationCardWrapper}>
-          <Image source={OfficeIcon} style={checkoutInfoStyles.officeIcon} />
-          <View style={checkoutInfoStyles.locationInfoWrapper} >
-            <Text style={checkoutInfoStyles.checkinLocationTitle}>Anda sedang Check-in di</Text>
-            <Text style={checkoutInfoStyles.checkinLocationDesc}>{props.checkinLocation}</Text>
-          </View>
-          <Text style={checkoutInfoStyles.checkinTimeDesc}>{checkinDataInfo.checkinTime}</Text>
-        </TouchableOpacity>
+        <View style={checkoutInfoStyles.checkinItemWrapper}>
+          <TouchableOpacity style={checkoutInfoStyles.locationCardWrapper} onPress={handleCall}>
+            <Image source={OfficeIcon} style={checkoutInfoStyles.officeIcon} />
+            <View style={checkoutInfoStyles.locationInfoWrapper} >
+              <Text style={checkoutInfoStyles.checkinLocationTitle}>Anda sedang Check-in di</Text>
+              <Text style={checkoutInfoStyles.checkinLocationDesc}>{props.checkinLocation}</Text>
+            </View>
+            <Text style={checkoutInfoStyles.checkinTimeDesc}>{checkinDataInfo.checkinTime}</Text>
+          </TouchableOpacity>
+          <ScrollView horizontal={true} style={checkoutInfoStyles.callButtonsWrapper}>
+            {policeNum && (
+              <TouchableOpacity style={checkoutInfoStyles.callButton} onPress={() => handleCall(policeNum)}>
+                <Image source={PoliceStIcon} style={checkoutInfoStyles.callButtonImage}></Image>
+                <Text style={checkoutInfoStyles.callButtonText}>{policeNum}</Text>
+              </TouchableOpacity>
+            )}
+            {hospitalNum && (
+              <TouchableOpacity style={checkoutInfoStyles.callButton} onPress={() => handleCall(hospitalNum)}>
+                <Image source={MedicIcon} style={checkoutInfoStyles.callButtonImage}></Image>
+                <Text style={checkoutInfoStyles.callButtonText}>{hospitalNum}</Text>
+              </TouchableOpacity>
+            )}
+            {firemanNum && (
+              <TouchableOpacity style={checkoutInfoStyles.callButton} onPress={() => handleCall(firemanNum)}>
+                <Image source={FiremanIcon} style={checkoutInfoStyles.callButtonImage}></Image>
+                <Text style={checkoutInfoStyles.callButtonText}>{firemanNum}</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </View>
       ) : (
         <TouchableOpacity style={checkoutInfoStyles.locationCardWrapper}>
           <Image source={AlertIcon} style={checkoutInfoStyles.officeIcon} />
           <View style={checkoutInfoStyles.locationInfoWrapper} >
             <Text style={checkoutInfoStyles.checkoutCardMessage}>Lakukan Check-in untuk mengakses alarm darurat</Text>
-            {/* <Text style={checkoutInfoStyles.checkoutCardMessage}>s</Text> */}
           </View>
         </TouchableOpacity>
       )}
@@ -666,6 +731,9 @@ const HostMenu = (props) => {
   const navigateToAddOffice = () => {
     navigation.navigate('AddOffice');
   }
+  const navigateToAparPage = () => {
+    navigation.navigate('APAR');
+  }
 
   return (
     <View style={hostMenuStyles.hostMenuContainer}>
@@ -682,6 +750,10 @@ const HostMenu = (props) => {
         <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToAddOffice}>
           <Image source={OfficeIcon} style={hostMenuStyles.buttonIcon}/>
           <Text style={hostMenuStyles.buttonText}>Tambah Kantor</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={hostMenuStyles.menuButton} onPress={navigateToAparPage}>
+          <Image source={FireToolsIcon} style={hostMenuStyles.buttonIcon}/>
+          <Text style={hostMenuStyles.buttonText}>APAR</Text>
         </TouchableOpacity>
 
         {/* SimulationIcon
@@ -880,10 +952,11 @@ const Footer = (props) => {
   }, [props])
   
   const navigation = useNavigation();
-  const navigateToAlarm = () => {
+  const navigateToAlarm = () => {    
     props.getActiveAlarm();
     if (props.activeAlarm != false) {
       navigation.navigate('Alarm', {
+        checkinKey: props.checkinKey,
         alarmKey: props.activeAlarm,
         alarmState: 'incoming',
         deviceToken: props.deviceToken,
@@ -1091,6 +1164,32 @@ const checkoutInfoStyles = StyleSheet.create({
     color: 'black',
     fontSize: 14,
     textAlign: 'center',
+  },
+  checkinItemWrapper: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  callButtonsWrapper: {
+    // 
+  },
+  callButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#F4F7FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    gap: 10,
+    marginHorizontal: 5,
+  },
+  callButtonImage: {
+    height: 28,
+    width: 28,
+  },
+  callButtonText: {
+    color: 'black',
+    fontSize: 14,
   }
 
 })

@@ -5,7 +5,9 @@ import {
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
-  Image
+  Image,
+  Modal,
+  Alert
 } from 'react-native'
 
 import React, { useEffect, useState } from 'react'
@@ -37,10 +39,24 @@ export default AlarmAlert = ({ route, navigation }) => {
   const [guestTokens, setGuestTokens] = useState([]);
   const [notifyTokens, setNotifyTokens] = useState([])
   const [safePointId, setSafePointId] = useState(null);
+  const [officeName, setOfficeName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState('')
+  const [pinValidation, setPinValidation] = useState('')
 
   const handleInformationChange = (info) => {
     setInformation(info);
+  }
+
+  const handleNumberChange = (value, setfunc) => {
+    const cleanedValue = value.replace(/[^0-9]/g, '');
+    setfunc(cleanedValue);
+  }
+
+  const handleClosePinModal = () => {
+    setPin('')
+    setShowPinModal(false)
   }
 
   useEffect(() => {
@@ -49,9 +65,12 @@ export default AlarmAlert = ({ route, navigation }) => {
     console.log('TOken ' , myToken)
   }, [])
 
+  // Listen to Office tables
   const getOfficeData = () => {
     onValue(ref(db, '/offices/' + checkinKey), (snap) => {
-      setSafePointId(snap.val().safe_point_id);
+      setSafePointId(snap.val().safe_point_id)
+      setOfficeName(snap.val().name)
+      setPinValidation(snap.val().pin)
     }, {onlyOnce: true})
   }
 
@@ -138,8 +157,24 @@ export default AlarmAlert = ({ route, navigation }) => {
     };
     return now.toLocaleString('en-US', options);
   }
+
+  const handleAlarmTriggered = () => {    
+    if (pin == pinValidation) {
+      handleClosePinModal()
+      triggerAlarm()
+    } else {
+      Alert.alert(
+        'Aktivasi Gagal',
+        'Pin alarm salah',
+        [
+          {text: 'OK', onPress: () => handleClosePinModal()},
+        ],
+        { cancelable: false }
+      )
+    }
+  }
   
-  const handleAlarmTriggered = async() => {
+  const triggerAlarm = async() => {
     const getNotificationTokens = async() => {
       await Promise.all([
         getAllToken(),
@@ -159,6 +194,7 @@ export default AlarmAlert = ({ route, navigation }) => {
         title: 'Alarm Darurat',
         body: information,
         safeKey: safePointId,
+        location: officeName,
         triggeredTime: getCurrentTime()
       });
 
@@ -244,6 +280,30 @@ export default AlarmAlert = ({ route, navigation }) => {
       {isLoading ? (<Loader/>) : null}
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: 'white', width: '100%', flexDirection: 'column' }}>
         <SafeAreaView style={{ height: '100%', }}>
+          {/* Pin Modal */}
+          <Modal
+            visible={showPinModal}
+            transparent={true}
+            animationType={'fade'}
+          >
+            <TouchableOpacity style={styles.modalBackdrop} onPress={handleClosePinModal}></TouchableOpacity>
+            <View style={styles.modalScrollViewWrapper}>
+              <Text style={styles.modalViewTitle}>Masukan Pin</Text>
+              <TextInput
+                style={styles.pinFormInput}
+                placeholder='Pin Alarm'
+                placeholderTextColor="#e5f2f2"
+                secureTextEntry={true}
+                value={pin}
+                keyboardType="numeric"
+                onChangeText={(text) => handleNumberChange(text, setPin)}></TextInput>
+              <TouchableOpacity style={styles.pinFormButton} onPress={handleAlarmTriggered}>
+                <Text style={styles.pinFormButtonText}>Bunyikan Alarm</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalFooterText}>batalkan</Text>
+            </View>
+          </Modal>
+
           <View style={styles.pageContainer}>
             <View style={styles.topNavigationWrapper}>
               <TouchableOpacity style={styles.button} onPress={() => {navigation.pop()}}>
@@ -253,7 +313,8 @@ export default AlarmAlert = ({ route, navigation }) => {
 
             {/* Alarm Button */}
             <View style={styles.pageBodyWrapper}>
-              <TouchableOpacity style={styles.alarmButton} onPress={handleAlarmTriggered}>
+              {/* <TouchableOpacity style={styles.alarmButton} onPress={handleAlarmTriggered}> */}
+              <TouchableOpacity style={styles.alarmButton} onPress={() => setShowPinModal(true)}>
                 <Image source={SirenIcon} style={styles.alarmButtonIcon}/>
                 <Text style={styles.alarmButtonText}>BUNYIKAN ALARM</Text>
               </TouchableOpacity>
@@ -442,6 +503,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
+  modalBackdrop: {
+    position:'absolute',
+    zIndex :99,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    flexDirection: 'column',
+  },
+  modalFooterText: {
+    color: '#e5f2f2',
+    fontSize: 14,
+    zIndex: 101,
+    bottom: '-100%',
+    letterSpacing: 2
+  },
+  modalScrollViewWrapper: {
+    position: 'relative',
+      zIndex: 100,
+      width: '100%',
+      top: '20%',
+      // height: 200,
+      backgroundColor: '#222f34',
+      flexDirection: 'column',
+      gap: 20,
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      paddingVertical: 20,
+  },
+  modalViewTitle: {
+    color: 'white',
+    fontSize: 18,
+  },
+  pinFormInput: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+    color: 'white',
+    width: '80%',
+  },
+  pinFormButton: {
+    backgroundColor: '#FFF200',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+    width: '80%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinFormButtonText: {
+    color: 'black',
+    fontWeight: '600'
+  }
 
   
 
