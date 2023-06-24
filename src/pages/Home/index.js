@@ -732,7 +732,7 @@ const HostMenu = (props) => {
     navigation.navigate('AddOffice');
   }
   const navigateToAparPage = () => {
-    navigation.navigate('APAR');
+    navigation.navigate('APAR', {userInfo: props.userInfo});
   }
 
   return (

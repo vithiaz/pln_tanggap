@@ -62,7 +62,7 @@ const PageContentCard = ({ navigation, addOfficeInfo, setIsLoading }) => {
           .replace(/[^a-zA-Z0-9-]/g, '');
       
         return slug;
-      }
+    }
     
     useState(() => {
         setQrAttemptKey(push(child(ref(db), 'offices')).key)
