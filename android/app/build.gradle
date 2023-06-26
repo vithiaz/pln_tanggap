@@ -101,23 +101,24 @@ android {
         versionCode 1
         versionName "1.0"
         missingDimensionStrategy 'react-native-camera', 'general' //Delete This if error
+        // missingDimensionStrategy 'react-native-camera', 'mlkit' //Delete This if error
     }
     signingConfigs {
-        release {
-            storeFile file('vithiaz.keystore')
-            storePassword '123456'
-            keyAlias 'vithiazkey'
-            keyPassword '123456'
-        }
-
         // release {
-        //     if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
-        //         storeFile file(MYAPP_UPLOAD_STORE_FILE)
-        //         storePassword MYAPP_UPLOAD_STORE_PASSWORD
-        //         keyAlias MYAPP_UPLOAD_KEY_ALIAS
-        //         keyPassword MYAPP_UPLOAD_KEY_PASSWORD
-        //     }
+        //     storeFile file('vithiaz.keystore')
+        //     storePassword '123456'
+        //     keyAlias 'vithiazkey'
+        //     keyPassword '123456'
         // }
+
+        release {
+            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+                storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                storePassword MYAPP_UPLOAD_STORE_PASSWORD
+                keyAlias MYAPP_UPLOAD_KEY_ALIAS
+                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
 
 
@@ -166,6 +167,11 @@ android {
 
         }
     }
+
+    // lintOptions { 
+    //     checkReleaseBuilds false
+    // }
+
 }
 
 
@@ -196,6 +202,8 @@ dependencies {
 
     // remove if error
     // implementation project(path: ":@react-native-firebase_dynamic-links")
+
+
 
 }
 

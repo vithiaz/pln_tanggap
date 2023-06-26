@@ -13,7 +13,7 @@ import {
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigation } from '@react-navigation/native';
 import QRCodeScanner from 'react-native-qrcode-scanner';
-import { RNCamera } from 'react-native-camera';
+// import { RNCamera } from 'react-native-camera';
 import moment from 'moment';
 
 import BackIcon from '../../assets/icon/back.png'

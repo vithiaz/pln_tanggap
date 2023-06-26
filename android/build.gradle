@@ -2,6 +2,10 @@
 
 buildscript {
     ext {
+        // buildToolsVersion = "28.0.3"
+        // minSdkVersion = 16
+        // compileSdkVersion = 28
+        // targetSdkVersion = 28
         buildToolsVersion = "33.0.0"
         minSdkVersion = 21
         compileSdkVersion = 33
@@ -20,6 +24,7 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.3.1")
+        // classpath("com.android.tools.build:gradle:3.3.0'")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath 'com.google.gms:google-services:4.3.15'
     }
@@ -34,8 +39,13 @@ buildscript {
                 // react-native-background-fetch
                 url("${project(':react-native-background-fetch').projectDir}/libs")
             }
+            maven { url "https://jitpack.io" }
+            maven { url "https://maven.google.com" }
+
 
         }   
     }
 
+    
+    
 }
